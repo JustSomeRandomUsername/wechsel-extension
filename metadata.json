@@ -1,0 +1,9 @@
+{
+  "name": "Workspaces",
+  "description": "Workspace Changer",
+  "uuid": "purple@transistor.local",
+  "settings-schema": "org.gnome.shell.extensions.ws",
+  "shell-version": [
+    "44"
+  ]
+}
