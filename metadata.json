@@ -1,8 +1,8 @@
 {
-  "name": "Workspaces",
-  "description": "Workspace Changer",
+  "name": "Project Changer",
+  "description": "Project Changer",
   "uuid": "purple@transistor.local",
-  "settings-schema": "org.gnome.shell.extensions.ws",
+  "settings-schema": "org.gnome.shell.extensions.project",
   "shell-version": [
     "44"
   ]

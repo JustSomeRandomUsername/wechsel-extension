@@ -25,29 +25,98 @@ const { GObject, St } = imports.gi;
 const Me = imports.misc.extensionUtils.getCurrentExtension();
 const Dialog = imports.ui.dialog;
 const ModalDialog = imports.ui.modalDialog;
+const BoxPointer = imports.ui.boxpointer;
 
 const ExtensionUtils = imports.misc.extensionUtils;
 const Main = imports.ui.main;
 const PanelMenu = imports.ui.panelMenu;
 const PopupMenu = imports.ui.popupMenu;
-const {Gio, GLib} = imports.gi;
+const { Gio, GLib } = imports.gi;
+const Util = imports.misc.util;
 const Clutter = imports.gi.Clutter;
 
 const { wm } = imports.ui.main;
 const { Meta, Shell } = imports.gi;
 
+const { getConfig } = Me.imports.util.utils;
+const { ProjectSwitcherPopup } = Me.imports.util.projectSwitcher;
+
+
 const _ = ExtensionUtils.gettext;
 
-const ws_folder = "ws/";
+var PopupMenuSection = class extends PopupMenu.PopupMenuBase {
+    constructor() {
+        super();
+
+
+        this._arrowAlignment = arrowAlignment;
+        this._arrowSide = arrowSide;
+
+
+        this.actor = this.box;
+        this.actor._delegate = this;
+        this.isOpen = true;
+        this._boxPointer = new BoxPointer.BoxPointer(arrowSide);
+        this.actor = this._boxPointer;
+        this.actor._delegate = this;
+
+        this._boxPointer.bin.set_child(this.box);
+
+        this.actor.add_style_class_name('popup-menu-section');
+    }
+
+    open(animate) {
+        if (this.isOpen)
+            return;
+
+        if (this.isEmpty())
+            return;
+
+        if (!this._systemModalOpenedId) {
+            this._systemModalOpenedId =
+                Main.layoutManager.connect('system-modal-opened', () => this.close());
+        }
+
+        this.isOpen = true;
+
+        this._boxPointer.setPosition(this.sourceActor, this._arrowAlignment);
+        this._boxPointer.open(animate);
+
+        this.actor.get_parent().set_child_above_sibling(this.actor, null);
+
+        this.emit('open-state-changed', true);
+    }
+
+    close(animate) {
+        if (this._activeMenuItem)
+            this._activeMenuItem.active = false;
+
+        if (this._boxPointer.visible) {
+            this._boxPointer.close(animate, () => {
+                this.emit('menu-closed');
+            });
+        }
+
+        if (!this.isOpen)
+            return;
+
+        this.isOpen = false;
+        this.emit('open-state-changed', false);
+    }
+
+
+};
+
 
 const Indicator = GObject.registerClass(
 class Indicator extends PanelMenu.Button {
 
     _init() {
-        super._init(0.0, _('Ws Indicator'));
+        super._init(0.0, _('Project Indicator'));
 
-        this.ws_names = [];
+        this.config = {};
         this.active = "";
+        this.current_path = ["default"];
         const filepath2 = GLib.build_filenamev([GLib.get_home_dir(), 'Desktop']);
         const file2 = Gio.File.new_for_path(filepath2);
         const info = file2.query_info('standard::*',Gio.FileQueryInfoFlags.NOFOLLOW_SYMLINKS, null);
@@ -64,152 +133,116 @@ class Indicator extends PanelMenu.Button {
 
         this.add_child(this.panelIcon);
 
+        this.menu.connect('open-state-changed', (menu, open) => {
+            if (open) {
+                this.updateUI();
+            } 
+        });
         this.updateUI();
     }
 
     updateUI() {
         this.menu.removeAll();
+        
+        const items = []
+        this.config = getConfig();
+        this.active = this.config.active;
+        
         this.panelIcon.text = this.active;
         
-        const filepath = GLib.build_filenamev([GLib.get_home_dir(), ws_folder]);
-        const file = Gio.File.new_for_path(filepath);
-
-        const items = []
-        this.ws_names = getWS(file);
-        for (let name of this.ws_names) {
-            let item = new PopupMenu.PopupMenuItem(_(name));
-            if (this.active != "" && name == this.active) {
-                item.setOrnament(PopupMenu.Ornament.CHECK)
-            }
-            
-            item.connect('activate', () => {
+        const addItem = (prj, menu, path, depth) => {
+            let item = menu.addAction(prj.name, () => {
                 for (const i of items) {
                     i.setOrnament(PopupMenu.Ornament.NONE);
                 }
                 item.setOrnament(PopupMenu.Ornament.CHECK);
-                this.change_ws(name);
-            });
+                this.change_project(prj.name);
+                // this.updateUI();
+
+            }, /*prj.children.length > 0 ? 'pan-end-symbolic' : ''*/)
+            if (prj.children.length > 0) {
+                item._getTopMenu().itemActivated = () => {};
+            }
+            if (this.active != "" && prj.name == this.active) {
+                item.setOrnament(PopupMenu.Ornament.CHECK)
+            }
             items.push(item);
-            this.menu.addMenuItem(item);
-        }
+            if (prj.children.length > 0) {
+                // if (this.current_path.join().startsWith(path.join())) {
+                    const section = new PopupMenu.PopupMenuSection();
+                    for (const child of prj.children) {
+                        addItem(child, section, path.concat(child.name) ,depth+1);
+                    }
+                    section.close();
+                    menu.addMenuItem(section);
+                // }
+            }
+        };
+
+        addItem(this.config.all_prjs, this.menu, ["default"], 0);
 
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-        const new_ws = new PopupMenu.PopupMenuItem(_('New Workspace'));
-        new_ws.connect('activate', () => {
-            this.newWsDialog();
+        const new_project = new PopupMenu.PopupMenuItem(_('New Workspace'));
+        new_project.connect('activate', () => {
+            ExtensionUtils.openPrefs()
+            // Util.spawn(["gnome-extensions", "prefs", Me.metadata.uuid]);
         });
-        this.menu.addMenuItem(new_ws);
+        this.menu.addMenuItem(new_project);
     }
 
-    change_ws(name) {
+    change_project(name) {
         this.active = name;
         this.panelIcon.text = name;
-        GLib.spawn_command_line_sync(GLib.build_filenamev([GLib.get_home_dir(), ws_folder, "change-prj "]) + name);
-    }
-
-    newWsDialog() {
-        // Creating a modal dialog
-        let wsDialog = new ModalDialog.ModalDialog({
-            destroyOnClose: true,
-        });  
-    
-        // Adding a Entry widget to the content area
-        const nameEntry = new St.Entry({
-            hint_text: 'Workspace Name',
-            can_focus: true,
-        });
-    
-        nameEntry.connect("key-press-event", (widget, event) => {
-            if (event.get_key_symbol() === Clutter.KEY_Escape) {
-                wsDialog.close();
-    
-            } else if (event.get_key_symbol() === Clutter.KEY_Enter) {
-                wsDialog.close(global.get_current_time());
-            }
-        });
-        
-    
-        wsDialog.setInitialKeyFocus(nameEntry);
-    
-        wsDialog.contentLayout.add_child(nameEntry);
-    
-        let closedId = wsDialog.connect('closed', (_dialog) => {
-            createWorkspace(nameEntry.get_text());
-            this.change_ws(nameEntry.get_text());
-            this.updateUI();
-            // _dialog.destroy();
-        });
-    
-        // The dialog was destroyed, so reset everything
-        wsDialog.connect('destroy', (_actor) => {
-            if (closedId) {
-                wsDialog.disconnect(closedId);
-                closedId = null;
-            }
-            wsDialog = null;
-        });
-    
-        // Adding buttons
-        wsDialog.setButtons([{
-                label: 'Close',
-                isDefault: false,
-                action: () => wsDialog.destroy(),
-            },{
-                label: 'Create',
-                isDefault: true,
-                action: () => wsDialog.close(global.get_current_time()),
-            },
-        ]);
-        wsDialog.open(global.get_current_time());
-        // global.stage.set_key_focus(nameEntry);
-    
+        Gio.Subprocess.new(
+            ['/home/purple/.local/bin/change-prj',name],
+            Gio.SubprocessFlags.NONE
+        );
+        dbusReload();
     }
 });
 
-function createWorkspace(name) {
-    const folder = Gio.File.new_for_path(GLib.build_filenamev([GLib.get_home_dir(), ws_folder, name]));
-    folder.make_directory(null);
-    for (const f of ["Desktop", "Documents", "Downloads", "Music", "Pictures", "Videos"]) {
-        folder.get_child(f).make_directory(null);
+function dbusReload() {
+    const connection = Gio.DBus.session;
+        
+    for (let i=0;i<20;i++) {
+        const notification = new GLib.Variant('(sava{sv})', ['reload',[],[]]);
+        connection.call(
+            'org.gnome.Nautilus',
+            '/org/gnome/Nautilus/window/'+i,
+            'org.gtk.Actions',
+            'Activate',
+            notification,
+            null,
+            Gio.DBusCallFlags.NONE,
+            -1,
+            null,
+            (connection, res) => {}
+        );
     }
+    const notification = new GLib.Variant('(sava{sv})', ['updateDesktop',[],[]]);
+    connection.call(
+        'com.desktop.ding',
+        '/com/desktop/ding',
+        'org.gtk.Actions',
+        'Activate',
+        notification,
+        null,
+        Gio.DBusCallFlags.NONE,
+        -1,
+        null,
+        (connection, res) => {}
+    );
 }
 
-function getWS(directory) {
-    const ws = []
-    const iter = directory.enumerate_children('standard::*',
-        Gio.FileQueryInfoFlags.NOFOLLOW_SYMLINKS, null);
+function _switchInputSource(display, window, binding) {
+    let config = getConfig();
+    _switcherPopup = new ProjectSwitcherPopup([config.all_prjs, ...config.all_prjs.children], this._keybindingAction, this._keybindingActionBackwards, this._indicator, binding, [], config.active);
+    _switcherPopup.connect('destroy', () => {
+        _switcherPopup = null;
+    });
+    if (!_switcherPopup.show(binding.is_reversed(), binding.get_name(), binding.get_mask()))
+        _switcherPopup.fadeAndDestroy();
 
-    while (true) {
-        const info = iter.next_file(null);
-        
-        if (info == null)
-            break;
-        
-        if (info.get_file_type() == 2) {
-            ws.push(info.get_name())
-        }
-    }
-    
-    return ws;
-}
-
-function getWS(directory) {
-    const ws = []
-    const iter = directory.enumerate_children('standard::*',
-        Gio.FileQueryInfoFlags.NOFOLLOW_SYMLINKS, null);
-
-    while (true) {
-        const info = iter.next_file(null);
-        
-        if (info == null)
-            break;
-        
-        if (info.get_file_type() == 2) {
-            ws.push(info.get_name())
-        }
-    }
-    
-    return ws;
 }
 
 class Extension {
@@ -222,23 +255,26 @@ class Extension {
         this._indicator = new Indicator();
         Main.panel.addToStatusArea(this._uuid, this._indicator);
 
-        wm.addKeybinding(
-            "next-ws",
-            settings_new_schema(Me.metadata["settings-schema"]),
-            Meta.KeyBindingFlags.NONE,
-            Shell.ActionMode.NORMAL,
-            () => {
-                    let idx = this._indicator.ws_names.findIndex(a => a == this._indicator.active);
-                    this._indicator.change_ws(this._indicator.ws_names[(idx + 1) % this._indicator.ws_names.length]);
-                    this._indicator.updateUI();
-                }
-            );
+        this._keybindingAction =
+            wm.addKeybinding('next-project',
+                settings_new_schema(Me.metadata["settings-schema"]),
+                Meta.KeyBindingFlags.NONE,
+                Shell.ActionMode.NORMAL,
+                _switchInputSource.bind(this));
+
+        this._keybindingActionBackwards =
+            wm.addKeybinding('previous-project',
+                settings_new_schema(Me.metadata["settings-schema"]),
+                Meta.KeyBindingFlags.NONE,
+                Shell.ActionMode.NORMAL,
+                _switchInputSource.bind(this));
     }
 
     disable() {
         this._indicator.destroy();
         this._indicator = null;
-        wm.removeKeybinding("next-ws")
+        wm.removeKeybinding("next-project");
+        wm.removeKeybinding("previous-project");
     }
 }
 
