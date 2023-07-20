@@ -144,22 +144,50 @@ class Indicator extends PanelMenu.Button {
     updateUI() {
         this.menu.removeAll();
         
-        const items = []
+        let items = []
         this.config = getConfig();
         this.active = this.config.active;
         
         this.panelIcon.text = this.active;
         
+        const list = new PopupMenu.PopupMenuSection();
+           
         const addItem = (prj, menu, path, depth) => {
-            let item = menu.addAction(prj.name, () => {
-                for (const i of items) {
-                    i.setOrnament(PopupMenu.Ornament.NONE);
-                }
-                item.setOrnament(PopupMenu.Ornament.CHECK);
-                this.change_project(prj.name);
-                // this.updateUI();
+            // section of children
 
-            }, /*prj.children.length > 0 ? 'pan-end-symbolic' : ''*/)
+            const constructChildSection = () => {
+                const section = new PopupMenu.PopupMenuSection();
+                if (prj.children.length > 0) {
+                    for (const child of prj.children) {
+                        addItem(child, section, path.concat(child.name), depth+1);
+                    }
+                }
+                return section;
+            }
+
+            let in_sub_menu = false;
+
+            const onItemActivated = () => {
+                if (prj.children.length == 0 || in_sub_menu) {
+                    this.change_project(prj.name);
+                    menu._getTopMenu().close();
+                    // this.updateUI();
+                } else {
+                    for (const it of items) {
+                        if (it != item) {
+                            it.destroy();
+                        }
+                    }
+                    item.setIcon(Gio.icon_new_for_string('pan-down-symbolic'))
+                    in_sub_menu = true;
+                    list.addMenuItem(constructChildSection());
+                }
+            }
+
+            let item = menu.addAction(prj.name, () => {
+                onItemActivated();
+            }, (prj.children.length > 0 && depth != 0) ? 'pan-end-symbolic' : '')
+
             if (prj.children.length > 0) {
                 item._getTopMenu().itemActivated = () => {};
             }
@@ -167,20 +195,15 @@ class Indicator extends PanelMenu.Button {
                 item.setOrnament(PopupMenu.Ornament.CHECK)
             }
             items.push(item);
-            if (prj.children.length > 0) {
-                // if (this.current_path.join().startsWith(path.join())) {
-                    const section = new PopupMenu.PopupMenuSection();
-                    for (const child of prj.children) {
-                        addItem(child, section, path.concat(child.name) ,depth+1);
-                    }
-                    section.close();
-                    menu.addMenuItem(section);
-                // }
+
+            if (depth == 0) {
+                onItemActivated();
             }
         };
 
-        addItem(this.config.all_prjs, this.menu, ["default"], 0);
+        addItem(this.config.all_prjs, list, ["default"], 0);
 
+        this.menu.addMenuItem(list);
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
         const new_project = new PopupMenu.PopupMenuItem(_('New Workspace'));
         new_project.connect('activate', () => {
