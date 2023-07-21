@@ -16,13 +16,37 @@ function fillPreferencesWindow(window) {
     const config = getConfig();
 
     // Create a preferences page, with a single group
-    const page = new Adw.PreferencesPage( { title: _('New Project') });
-    const page2 = new Adw.PreferencesPage();
-    window.add(page);
-    window.add(page2);
+    const new_prj_page = new Adw.PreferencesPage({
+        title: _('New Project'),
+        icon_name: 'document-new-symbolic', 
+    });
+    const settings_page = new Adw.PreferencesPage({
+        title: _('Settings'),
+        icon_name: 'preferences-system-symbolic',
+    });
+    window.add(settings_page);
+    window.add(new_prj_page);
 
-    const group = new Adw.PreferencesGroup();
-    page.add(group);
+
+    const general_group = new Adw.PreferencesGroup();
+    settings_page.add(general_group);
+    
+    let showIndicaterRow = new Adw.ActionRow({
+        title: 'Show Indicator',
+    });
+
+    const toggle = new Gtk.Switch({
+        active: settings.get_boolean('show-indicator'),
+        valign: Gtk.Align.CENTER,
+    });
+    settings.bind('show-indicator', toggle, 'active', Gio.SettingsBindFlags.DEFAULT);
+    showIndicaterRow.add_suffix(toggle);
+    // showIndicaterRow.activatable_widget = toggle;
+    general_group.add(showIndicaterRow);
+
+
+    const add_prj_group = new Adw.PreferencesGroup();
+    new_prj_page.add(add_prj_group);
 
     const model = new Gtk.StringList();
     const addItem = (prj) => {
@@ -33,15 +57,15 @@ function fillPreferencesWindow(window) {
     }
     addItem(config.all_prjs);
 
-    comboRow = new Adw.ComboRow({
+    let parentRow = new Adw.ComboRow({
         title: 'Parent',
         model,
     });
     // comboRow.set_selected(keyBind);
-    group.add(comboRow);
+    add_prj_group.add(parentRow);
 
     const entryRow = new Adw.ActionRow({ title: _('Name') });
-    group.add(entryRow);
+    add_prj_group.add(entryRow);
 
     const name = new Gtk.Entry({
         placeholder_text: 'Project name',
@@ -53,7 +77,7 @@ function fillPreferencesWindow(window) {
                           ["Photos", "folder-pictures"], ["Desktop","user-desktop"], 
                           ["Documents", "folder-documents"], ["Downloads", "folder-download"]]) {
         const row = new Adw.ActionRow({ title: folder[0] });
-        group.add(row);
+        add_prj_group.add(row);
         const toggle = new Gtk.Switch({
             active: ["Desktop", "Downloads"].includes(folder[0]),
             valign: Gtk.Align.CENTER,
@@ -71,32 +95,21 @@ function fillPreferencesWindow(window) {
         halign: Gtk.Align.END,
         cssClasses: ['raised'],
     });
-    group.add(createButton);
+    add_prj_group.add(createButton);
 
     createButton.connect('clicked', () => {
         GLib.spawn_command_line_sync(GLib.build_filenamev([GLib.get_home_dir(), ".local/bin", "change-prj "]) +
-        "--new --parent "+ model.get_string(comboRow.get_selected())+
+        "--new --parent "+ model.get_string(parentRow.get_selected())+
         ' --folders="'+ folders.filter((x) => x[0].active).map((x) => x[1]).join(" ")+ '" '+name.text);
 
         name.text = "";
         for (const folder of folders) {
             folder[0].active = ["Desktop", "Downloads"].includes(folder);
         }
-        comboRow.set_selected(0);
+        parentRow.set_selected(0);
 
     });
-    // Create a switch and bind its value to the `show-indicator` key
-    // const toggle = new Gtk.Switch({
-    //     active: settings.get_boolean('show-indicator'),
-    //     valign: Gtk.Align.CENTER,
-    // });
-    // settings.bind('show-indicator', toggle, 'active',
-    //     Gio.SettingsBindFlags.DEFAULT);
-
-    // // Add the switch to the row
-    // row.add_suffix(toggle);
-    // row.activatable_widget = toggle;
-
+    
     // Make sure the window doesn't outlive the settings object
     window._settings = settings;
 }

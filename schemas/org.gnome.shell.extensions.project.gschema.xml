@@ -12,5 +12,8 @@
             <summary>Circle to previous project</summary>
         </key>
 
+         <key name="show-indicator" type="b">
+            <default>true</default>
+        </key>
     </schema>
 </schemalist>

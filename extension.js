@@ -205,7 +205,7 @@ class Indicator extends PanelMenu.Button {
 
         this.menu.addMenuItem(list);
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-        const new_project = new PopupMenu.PopupMenuItem(_('New Workspace'));
+        const new_project = new PopupMenu.PopupMenuItem(_('Settings'));
         new_project.connect('activate', () => {
             ExtensionUtils.openPrefs()
             // Util.spawn(["gnome-extensions", "prefs", Me.metadata.uuid]);
@@ -278,6 +278,9 @@ class Extension {
         this._indicator = new Indicator();
         Main.panel.addToStatusArea(this._uuid, this._indicator);
 
+        this.settings = ExtensionUtils.getSettings();
+        this.settings.bind('show-indicator', this._indicator, 'visible', Gio.SettingsBindFlags.DEFAULT);
+            
         this._keybindingAction =
             wm.addKeybinding('next-project',
                 settings_new_schema(Me.metadata["settings-schema"]),
