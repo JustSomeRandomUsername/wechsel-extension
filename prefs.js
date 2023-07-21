@@ -4,6 +4,8 @@ const Me = ExtensionUtils.getCurrentExtension();
 const { getConfig } = Me.imports.util.utils;
 const { Adw, Gio, Gtk, GLib } = imports.gi;
 
+
+
 const _ = ExtensionUtils.gettext;
 const GETTEXT_DOMAIN = 'my-indicator-extension';
 
@@ -24,10 +26,16 @@ function fillPreferencesWindow(window) {
         title: _('Settings'),
         icon_name: 'preferences-system-symbolic',
     });
+    const rm_prj_page = new Adw.PreferencesPage({
+        title: _('Remove Project'),
+        icon_name: 'edit-delete-symbolic',
+    });
     window.add(settings_page);
     window.add(new_prj_page);
+    window.add(rm_prj_page);
 
 
+    // Settings Page
     const general_group = new Adw.PreferencesGroup();
     settings_page.add(general_group);
     
@@ -41,10 +49,9 @@ function fillPreferencesWindow(window) {
     });
     settings.bind('show-indicator', toggle, 'active', Gio.SettingsBindFlags.DEFAULT);
     showIndicaterRow.add_suffix(toggle);
-    // showIndicaterRow.activatable_widget = toggle;
     general_group.add(showIndicaterRow);
 
-
+    // Add Project Page
     const add_prj_group = new Adw.PreferencesGroup();
     new_prj_page.add(add_prj_group);
 
@@ -61,7 +68,6 @@ function fillPreferencesWindow(window) {
         title: 'Parent',
         model,
     });
-    // comboRow.set_selected(keyBind);
     add_prj_group.add(parentRow);
 
     const entryRow = new Adw.ActionRow({ title: _('Name') });
@@ -108,6 +114,75 @@ function fillPreferencesWindow(window) {
         }
         parentRow.set_selected(0);
 
+    });
+
+    // Remove Project Page
+    const rm_prj_group = new Adw.PreferencesGroup();
+    rm_prj_page.add(rm_prj_group);
+
+    const is_delete_row = new Adw.ActionRow({
+        title: 'Delete / Remove Project',
+    });
+    const is_delete = new Gtk.Switch({
+        active: false,
+        valign: Gtk.Align.CENTER,
+    });
+
+    is_delete_row.add_suffix(is_delete);
+    rm_prj_group.add(is_delete_row);
+
+
+    const warning_remove = 'This will remove the current project and all its children from the config, but not delete any of the files!';
+    const delete_warning = new Gtk.Label({
+        label: warning_remove,
+        halign: Gtk.Align.START,
+        valign: Gtk.Align.CENTER,
+    });
+
+    rm_prj_group.add(delete_warning);
+
+
+    is_delete.connect('notify::active', () => {
+        removeButton.label = is_delete.active ? 'Delete Project' : 'Remove Project';
+        delete_warning.label = is_delete.active ? 
+            'Warning: This will delete the project and all its children! Both from the config and delete all the files / folders from the drive!' : warning_remove;
+    });
+
+    const removeButton = new Gtk.Button({
+        label: 'Remove Project',
+        valign: Gtk.Align.CENTER,
+        halign: Gtk.Align.END,
+        cssClasses: ['raised'],
+    });
+    rm_prj_group.add(removeButton);
+
+    removeButton.connect('clicked', () => {
+        const message = is_delete.active ?
+        'Are you sure you want to delete the project and all its children?' :
+        'Are you sure you want to remove the project and all its children from the config?';
+
+        //  Create a dialog to confirm the action
+        const dialog = new Gtk.AlertDialog({
+            message: message,
+            detail: 'This action cannot be undone!',
+            // transient_for: window,
+            modal: true,
+            // destroy_with_parent: true,
+            buttons: [
+                    'Cancel',
+                    'Confirm',
+            ],
+        });
+
+        dialog.choose(window, null, (a,b) => {
+            if (a.choose_finish(b) == 1) {
+                console.log("Deleting");
+                        //     // GLib.spawn_command_line_sync(GLib.build_filenamev([GLib.get_home_dir(), ".local/bin", "change-prj "]) +
+        //     // "--rm --parent "+ model.get_string(parentRow.get_selected())+
+        //     // ' --folders="'+ folders.filter((x) => x[0].active).map((x) => x[1]).join(" ")+ '" '+name.text);
+
+            }
+        });
     });
     
     // Make sure the window doesn't outlive the settings object
