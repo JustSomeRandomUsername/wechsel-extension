@@ -80,7 +80,7 @@ function fillPreferencesWindow(window) {
 
     const folders = [];
     for (const folder of [["Music","folder-music"], ["Videos", "folder-videos"], 
-                          ["Photos", "folder-pictures"], ["Desktop","user-desktop"], 
+                          ["Pictures", "folder-pictures"], ["Desktop","user-desktop"], 
                           ["Documents", "folder-documents"], ["Downloads", "folder-download"]]) {
         const row = new Adw.ActionRow({ title: folder[0] });
         add_prj_group.add(row);
