@@ -46,7 +46,7 @@ const _ = ExtensionUtils.gettext;
 
 const interfaceXml = `
     <node>
-        <interface name="org.gnome.Shell.Extensions.prjswitch.service">
+        <interface name="org.gnome.shell.extensions.prjchange.service">
             <method name="Reload"/>
         </interface>
     </node>`;
@@ -236,7 +236,7 @@ function _switchInputSource(display, window, binding) {
     _switcherPopup.connect('destroy', () => {
         _switcherPopup = null;
     });
-    if (!_switcherPopup.show(binding.is_reversed(), binding.get_name(), binding.get_mask()))
+    if (!_switcherPopup.show(binding.get_name().endsWith("backward"), binding.get_name(), binding.get_mask()))
         _switcherPopup.fadeAndDestroy();
 
 }
@@ -255,14 +255,14 @@ class Extension {
         this.settings.bind('show-indicator', this._indicator, 'visible', Gio.SettingsBindFlags.DEFAULT);
             
         this._keybindingAction =
-            wm.addKeybinding('next-project',
+            wm.addKeybinding('switch-projects',
                 settings_new_schema(Me.metadata["settings-schema"]),
                 Meta.KeyBindingFlags.NONE,
                 Shell.ActionMode.NORMAL,
                 _switchInputSource.bind(this));
 
         this._keybindingActionBackwards =
-            wm.addKeybinding('previous-project',
+            wm.addKeybinding('switch-projects-backward',
                 settings_new_schema(Me.metadata["settings-schema"]),
                 Meta.KeyBindingFlags.NONE,
                 Shell.ActionMode.NORMAL,
@@ -276,12 +276,12 @@ class Extension {
             serviceInstance = new DbusService();
             exportedObject = Gio.DBusExportedObject.wrapJSObject(interfaceXml, serviceInstance);
             serviceInstance._indicator = this._indicator;
-            exportedObject.export(connection, '/org/gnome/Shell/Extensions/prjswitch/service');
+            exportedObject.export(connection, '/org/gnome/shell/extensions/prjchange/service');
         }
 
         this.ownerId = Gio.bus_own_name(
             Gio.BusType.SESSION,
-            'org.gnome.Shell.Extensions.prjswitch',
+            'org.gnome.shell.extensions.prjchange',
             Gio.BusNameOwnerFlags.NONE,
             onBusAcquired.bind(this),
             () => {},
@@ -291,8 +291,8 @@ class Extension {
     disable() {
         this._indicator.destroy();
         this._indicator = null;
-        wm.removeKeybinding("next-project");
-        wm.removeKeybinding("previous-project");
+        wm.removeKeybinding("switch-projects");
+        wm.removeKeybinding("switch-projects-backward");
 
         Gio.bus_unown_name(this.ownerId);
     }
@@ -323,6 +323,5 @@ function settings_new_schema(schema) {
 class DbusService {
     Reload() {
         this._indicator.updateUI();
-        console.log('Reloading invoked');
     }
 }

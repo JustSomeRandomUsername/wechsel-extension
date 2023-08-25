@@ -2,7 +2,7 @@
   "name": "Project Changer",
   "description": "Project Changer",
   "uuid": "purple@transistor.local",
-  "settings-schema": "org.gnome.shell.extensions.project",
+  "settings-schema": "org.gnome.shell.extensions.prjchange",
   "shell-version": [
     "44"
   ]

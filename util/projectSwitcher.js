@@ -19,10 +19,10 @@ var ProjectSwitcherPopup = GObject.registerClass(
             this._switcherList = new ProjectSwitcher(this._items, parents.length != 0);
         }
 
-        _initialSelection(backward, binding) {//TODO cicle on first press dont just open
+        _initialSelection(backward, binding) {
             for (const i of this._items) {
                 if (i.name == this.active) {
-                    this._select(this._items.indexOf(i));
+                    this._select(Math.max(0, Math.min(this._items.indexOf(i) + (backward ? -1 : 1), this._items.length - 1)));
                     return;
                 }
             }

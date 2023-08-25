@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<KeyListEntries group="system" schema="org.gnome.shell.extensions.project" name="Navigation">
-  <KeyListEntry name="next-project" description="Circle to next project"/>
-  <KeyListEntry name="previous-project" description="Circle to previous project"/>
-</KeyListEntries>

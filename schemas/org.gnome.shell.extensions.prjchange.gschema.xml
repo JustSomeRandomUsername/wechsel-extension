@@ -1,13 +1,13 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.1" encoding="UTF-8"?>
 <schemalist gettext-domain="project">
-    <schema id="org.gnome.shell.extensions.project" path="/org/gnome/shell/extensions/project/">
+    <schema id="org.gnome.shell.extensions.prjchange" path="/org/gnome/shell/extensions/prjchange/">
         
-        <key type="as" name="next-project">
+        <key type="as" name="switch-projects">
             <default><![CDATA[['<Super>less']]]></default>
             <summary>Circle to next project</summary>
         </key>
 
-        <key type="as" name="previous-project">
+        <key type="as" name="switch-projects-backward">
             <default><![CDATA[['<Super><Shift>less']]]></default>
             <summary>Circle to previous project</summary>
         </key>
