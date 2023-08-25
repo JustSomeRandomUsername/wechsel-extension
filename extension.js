@@ -217,7 +217,7 @@ class Indicator extends PanelMenu.Button {
         this.active = name;
         this.panelIcon.text = name;
         Gio.Subprocess.new(
-            ['/home/purple/.local/bin/change-prj',name],
+            [GLib.build_filenamev([GLib.get_home_dir(), '.local/bin/change-prj']), name],//TODO find a better way to get the path of the executable 
             Gio.SubprocessFlags.NONE
         );
         dbusReload();
