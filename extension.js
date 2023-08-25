@@ -220,42 +220,8 @@ class Indicator extends PanelMenu.Button {
             [GLib.build_filenamev([GLib.get_home_dir(), '.local/bin/change-prj']), name],//TODO find a better way to get the path of the executable 
             Gio.SubprocessFlags.NONE
         );
-        dbusReload();
     }
 });
-
-function dbusReload() {
-    const connection = Gio.DBus.session;
-        
-    for (let i=0;i<20;i++) {
-        const notification = new GLib.Variant('(sava{sv})', ['reload',[],[]]);
-        connection.call(
-            'org.gnome.Nautilus',
-            '/org/gnome/Nautilus/window/'+i,
-            'org.gtk.Actions',
-            'Activate',
-            notification,
-            null,
-            Gio.DBusCallFlags.NONE,
-            -1,
-            null,
-            (connection, res) => {}
-        );
-    }
-    const notification = new GLib.Variant('(sava{sv})', ['updateDesktop',[],[]]);
-    connection.call(
-        'com.desktop.ding',
-        '/com/desktop/ding',
-        'org.gtk.Actions',
-        'Activate',
-        notification,
-        null,
-        Gio.DBusCallFlags.NONE,
-        -1,
-        null,
-        (connection, res) => {}
-    );
-}
 
 function _switchInputSource(display, window, binding) {
     let config = getConfig();
