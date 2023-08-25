@@ -18,7 +18,7 @@
 
 /* exported init */
 
-const GETTEXT_DOMAIN = 'my-indicator-extension';
+const GETTEXT_DOMAIN = 'project-switcher-extension';
 
 const { GObject, St } = imports.gi;
 
@@ -43,6 +43,13 @@ const { ProjectSwitcherPopup } = Me.imports.util.projectSwitcher;
 
 
 const _ = ExtensionUtils.gettext;
+
+const interfaceXml = `
+    <node>
+        <interface name="org.gnome.Shell.Extensions.prjswitch.service">
+            <method name="Reload"/>
+        </interface>
+    </node>`;
 
 var PopupMenuSection = class extends PopupMenu.PopupMenuBase {
     constructor() {
@@ -260,6 +267,25 @@ class Extension {
                 Meta.KeyBindingFlags.NONE,
                 Shell.ActionMode.NORMAL,
                 _switchInputSource.bind(this));
+
+        let serviceInstance = null;
+        let exportedObject = null;
+        
+        function onBusAcquired(connection) {
+            // Create the class instance, then the D-Bus object
+            serviceInstance = new DbusService();
+            exportedObject = Gio.DBusExportedObject.wrapJSObject(interfaceXml, serviceInstance);
+            serviceInstance._indicator = this._indicator;
+            exportedObject.export(connection, '/org/gnome/Shell/Extensions/prjswitch/service');
+        }
+
+        this.ownerId = Gio.bus_own_name(
+            Gio.BusType.SESSION,
+            'org.gnome.Shell.Extensions.prjswitch',
+            Gio.BusNameOwnerFlags.NONE,
+            onBusAcquired.bind(this),
+            () => {},
+            () => {});           
     }
 
     disable() {
@@ -267,6 +293,8 @@ class Extension {
         this._indicator = null;
         wm.removeKeybinding("next-project");
         wm.removeKeybinding("previous-project");
+
+        Gio.bus_unown_name(this.ownerId);
     }
 }
 
@@ -290,4 +318,11 @@ function settings_new_schema(schema) {
             + Me.metadata.uuid + ". Please check your installation.")
     }
     return new Gio.Settings({ settings_schema: schemaObj });
+}
+
+class DbusService {
+    Reload() {
+        this._indicator.updateUI();
+        console.log('Reloading invoked');
+    }
 }

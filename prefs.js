@@ -113,7 +113,7 @@ function fillPreferencesWindow(window) {
             folder[0].active = ["Desktop", "Downloads"].includes(folder);
         }
         parentRow.set_selected(0);
-
+        //TODO update UI
     });
 
     // Remove Project Page
