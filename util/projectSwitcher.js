@@ -1,9 +1,11 @@
-const SwitcherPopup = imports.ui.switcherPopup;
-const { GObject, St } = imports.gi;
-const Clutter = imports.gi.Clutter;
-const Atk = imports.gi.Atk;
+import * as SwitcherPopup from 'resource:///org/gnome/shell/ui/switcherPopup.js';
 
-var ProjectSwitcherPopup = GObject.registerClass(
+import St from 'gi://St';
+import GObject from 'gi://GObject';
+import Clutter from 'gi://Clutter';
+// import Atk from 'gi://Atk';
+
+const ProjectSwitcherPopup = GObject.registerClass(
     class InputSourcePopup extends SwitcherPopup.SwitcherPopup {
         _init(items, action, actionBackward, indicator, binding, parents, active) {
             super._init(items);
@@ -92,7 +94,7 @@ var ProjectSwitcherPopup = GObject.registerClass(
         }
     });
     
-    var ProjectSwitcher = GObject.registerClass(
+const ProjectSwitcher = GObject.registerClass(
     class InputSourceSwitcher extends SwitcherPopup.SwitcherList {
         _init(items, has_parent) {
             super._init(true);
@@ -177,3 +179,4 @@ var ProjectSwitcherPopup = GObject.registerClass(
     
     });
     
+export { ProjectSwitcherPopup, ProjectSwitcher }

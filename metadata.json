@@ -4,6 +4,7 @@
   "uuid": "purple@transistor.local",
   "settings-schema": "org.gnome.shell.extensions.prjchange",
   "shell-version": [
-    "44"
+    "44",
+    "45"
   ]
 }

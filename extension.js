@@ -18,31 +18,44 @@
 
 /* exported init */
 
-const GETTEXT_DOMAIN = 'project-switcher-extension';
+// const GETTEXT_DOMAIN = 'project-switcher-extension';
 
-const { GObject, St } = imports.gi;
+import St from 'gi://St';
+import GObject from 'gi://GObject';
+import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
+import Meta from 'gi://Meta';
+import Shell from 'gi://Shell';
+import Clutter from 'gi://Clutter';
 
-const Me = imports.misc.extensionUtils.getCurrentExtension();
-const Dialog = imports.ui.dialog;
-const ModalDialog = imports.ui.modalDialog;
-const BoxPointer = imports.ui.boxpointer;
+import * as BoxPointer from 'resource:///org/gnome/shell/ui/boxpointer.js';
+import { wm, panel, layoutManager} from 'resource:///org/gnome/shell/ui/main.js';
+import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
+import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
-const ExtensionUtils = imports.misc.extensionUtils;
-const Main = imports.ui.main;
-const PanelMenu = imports.ui.panelMenu;
-const PopupMenu = imports.ui.popupMenu;
-const { Gio, GLib } = imports.gi;
-const Util = imports.misc.util;
-const Clutter = imports.gi.Clutter;
+import { getConfig } from './util/utils.js';
+import { ProjectSwitcherPopup } from './util/projectSwitcher.js'
 
-const { wm } = imports.ui.main;
-const { Meta, Shell } = imports.gi;
+// const Me = imports.misc.extensionUtils.getCurrentExtension();
+// const Dialog = imports.ui.dialog;
+// const ModalDialog = imports.ui.modalDialog;
+// const ExtensionUtils = imports.misc.extensionUtils;
+import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 
-const { getConfig } = Me.imports.util.utils;
-const { ProjectSwitcherPopup } = Me.imports.util.projectSwitcher;
+// const BoxPointer = imports.ui.boxpointer;
+// const Main = imports.ui.main;
+// const PanelMenu = imports.ui.panelMenu;
+// const PopupMenu = imports.ui.popupMenu;
+// const Util = imports.misc.util;
+// const Clutter = imports.gi.Clutter;
+
+// const { wm } = imports.ui.main;
+
+// const { getConfig } = Me.imports.util.utils;
+// const { ProjectSwitcherPopup } = Me.imports.util.projectSwitcher;
 
 
-const _ = ExtensionUtils.gettext;
+// const _ = ExtensionUtils.gettext;
 
 const interfaceXml = `
     <node>
@@ -51,72 +64,67 @@ const interfaceXml = `
         </interface>
     </node>`;
 
-var PopupMenuSection = class extends PopupMenu.PopupMenuBase {
-    constructor() {
-        super();
+// class PopupMenuSection extends PopupMenu.PopupMenuBase {
+//     constructor(sourceActor, arrowAlignment, arrowSide) {
+//         super(sourceActor, arrowAlignment, arrowSide);
+//         this._arrowAlignment = arrowAlignment;
+//         this._arrowSide = arrowSide;
 
+//         this.actor = this.box;
+//         this.actor._delegate = this;
+//         this.isOpen = true;
+//         this._boxPointer = new BoxPointer.BoxPointer(arrowSide);
+//         this.actor = this._boxPointer;
+//         this.actor._delegate = this;
 
-        this._arrowAlignment = arrowAlignment;
-        this._arrowSide = arrowSide;
+//         this._boxPointer.bin.set_child(this.box);
 
+//         this.actor.add_style_class_name('popup-menu-section');
+//     }
 
-        this.actor = this.box;
-        this.actor._delegate = this;
-        this.isOpen = true;
-        this._boxPointer = new BoxPointer.BoxPointer(arrowSide);
-        this.actor = this._boxPointer;
-        this.actor._delegate = this;
+//     open(animate) {
+//         if (this.isOpen)
+//             return;
 
-        this._boxPointer.bin.set_child(this.box);
+//         if (this.isEmpty())
+//             return;
 
-        this.actor.add_style_class_name('popup-menu-section');
-    }
+//         if (!this._systemModalOpenedId) {
+//             this._systemModalOpenedId =
+//                 layoutManager.connect('system-modal-opened', () => this.close());
+//         }
 
-    open(animate) {
-        if (this.isOpen)
-            return;
+//         this.isOpen = true;
 
-        if (this.isEmpty())
-            return;
+//         this._boxPointer.setPosition(this.sourceActor, this._arrowAlignment);
+//         this._boxPointer.open(animate);
 
-        if (!this._systemModalOpenedId) {
-            this._systemModalOpenedId =
-                Main.layoutManager.connect('system-modal-opened', () => this.close());
-        }
+//         this.actor.get_parent().set_child_above_sibling(this.actor, null);
 
-        this.isOpen = true;
+//         this.emit('open-state-changed', true);
+//     }
 
-        this._boxPointer.setPosition(this.sourceActor, this._arrowAlignment);
-        this._boxPointer.open(animate);
+//     close(animate) {
+//         if (this._activeMenuItem)
+//             this._activeMenuItem.active = false;
 
-        this.actor.get_parent().set_child_above_sibling(this.actor, null);
+//         if (this._boxPointer.visible) {
+//             this._boxPointer.close(animate, () => {
+//                 this.emit('menu-closed');
+//             });
+//         }
 
-        this.emit('open-state-changed', true);
-    }
+//         if (!this.isOpen)
+//             return;
 
-    close(animate) {
-        if (this._activeMenuItem)
-            this._activeMenuItem.active = false;
-
-        if (this._boxPointer.visible) {
-            this._boxPointer.close(animate, () => {
-                this.emit('menu-closed');
-            });
-        }
-
-        if (!this.isOpen)
-            return;
-
-        this.isOpen = false;
-        this.emit('open-state-changed', false);
-    }
-
-
-};
+//         this.isOpen = false;
+//         this.emit('open-state-changed', false);
+//     }
+// };
 
 
 const Indicator = GObject.registerClass(
-class Indicator extends PanelMenu.Button {
+    class Indicator extends PanelMenu.Button {
 
     _init() {
         super._init(0.0, _('Project Indicator'));
@@ -130,7 +138,7 @@ class Indicator extends PanelMenu.Button {
         
         if (info.get_is_symlink()) {
             const a = info.get_symlink_target().split("/");
-            this.active = a[a.length -2];
+            this.active = a[a.length -2];//TODO this seems wrong it should read the json file
         }
         
         this.panelIcon = new St.Label({
@@ -193,8 +201,8 @@ class Indicator extends PanelMenu.Button {
 
             let item = menu.addAction(prj.name, () => {
                 onItemActivated();
-            }, (prj.children.length > 0 && depth != 0) ? 'pan-end-symbolic' : '')
-
+            }, (prj.children.length > 0 && depth != 0) ? 'pan-end-symbolic' : '');
+            // item._icon.setIconSize(16);
             if (prj.children.length > 0) {
                 item._getTopMenu().itemActivated = () => {};
             }
@@ -214,8 +222,8 @@ class Indicator extends PanelMenu.Button {
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
         const new_project = new PopupMenu.PopupMenuItem(_('Settings'));
         new_project.connect('activate', () => {
-            ExtensionUtils.openPrefs()
-            // Util.spawn(["gnome-extensions", "prefs", Me.metadata.uuid]);
+            Extension.openPreferences();
+            //TODO
         });
         this.menu.addMenuItem(new_project);
     }
@@ -232,7 +240,7 @@ class Indicator extends PanelMenu.Button {
 
 function _switchInputSource(display, window, binding) {
     let config = getConfig();
-    _switcherPopup = new ProjectSwitcherPopup([config.all_prjs, ...config.all_prjs.children], this._keybindingAction, this._keybindingActionBackwards, this._indicator, binding, [], config.active);
+    let _switcherPopup = new ProjectSwitcherPopup([config.all_prjs, ...config.all_prjs.children], this._keybindingAction, this._keybindingActionBackwards, this._indicator, binding, [], config.active);
     _switcherPopup.connect('destroy', () => {
         _switcherPopup = null;
     });
@@ -241,29 +249,29 @@ function _switchInputSource(display, window, binding) {
 
 }
 
-class Extension {
+export default class ProjectChangerExtension extends Extension {
     constructor(uuid) {
+        super(uuid);
         this._uuid = uuid;
-        ExtensionUtils.initTranslations(GETTEXT_DOMAIN);
     }
 
     enable() {
         this._indicator = new Indicator();
-        Main.panel.addToStatusArea(this._uuid, this._indicator);
+        panel.addToStatusArea(this._uuid, this._indicator);
 
-        this.settings = ExtensionUtils.getSettings();
+        this.settings = this.getSettings();
         this.settings.bind('show-indicator', this._indicator, 'visible', Gio.SettingsBindFlags.DEFAULT);
-            
+        
         this._keybindingAction =
             wm.addKeybinding('switch-projects',
-                settings_new_schema(Me.metadata["settings-schema"]),
+                this.settings_new_schema(this.metadata["settings-schema"]),
                 Meta.KeyBindingFlags.NONE,
                 Shell.ActionMode.NORMAL,
                 _switchInputSource.bind(this));
 
         this._keybindingActionBackwards =
             wm.addKeybinding('switch-projects-backward',
-                settings_new_schema(Me.metadata["settings-schema"]),
+                this.settings_new_schema(this.metadata["settings-schema"]),
                 Meta.KeyBindingFlags.NONE,
                 Shell.ActionMode.NORMAL,
                 _switchInputSource.bind(this));
@@ -296,32 +304,34 @@ class Extension {
 
         Gio.bus_unown_name(this.ownerId);
     }
-}
 
-function init(meta) {
-    return new Extension(meta.uuid);
-}
-
-
-function settings_new_schema(schema) {
-    const GioSSS = Gio.SettingsSchemaSource;
-    const schemaDir = Me.dir.get_child("schemas");
-
-    let schemaSource = schemaDir.query_exists(null) ?
-        GioSSS.new_from_directory(schemaDir.get_path(), GioSSS.get_default(), false) :
-        GioSSS.get_default();
-
-    const schemaObj = schemaSource.lookup(schema, true);
-
-    if (!schemaObj) {
-        throw new Error("Schema " + schema + " could not be found for extension "
-            + Me.metadata.uuid + ". Please check your installation.")
+    settings_new_schema(schema) {
+        const GioSSS = Gio.SettingsSchemaSource;
+        const schemaDir = this.dir.get_child("schemas");
+    
+        let schemaSource = schemaDir.query_exists(null) ?
+            GioSSS.new_from_directory(schemaDir.get_path(), GioSSS.get_default(), false) :
+            GioSSS.get_default();
+    
+        const schemaObj = schemaSource.lookup(schema, true);
+    
+        if (!schemaObj) {
+            throw new Error("Schema " + schema + " could not be found for extension "
+                + this.metadata.uuid + ". Please check your installation.")
+        }
+        return new Gio.Settings({ settings_schema: schemaObj });
     }
-    return new Gio.Settings({ settings_schema: schemaObj });
 }
+
+// function init(meta) {
+//     return new   (meta.uuid);
+// }
 
 class DbusService {
     Reload() {
         this._indicator.updateUI();
     }
 }
+
+
+export { Indicator }
