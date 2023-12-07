@@ -7,14 +7,16 @@ import Clutter from 'gi://Clutter';
 
 const ProjectSwitcherPopup = GObject.registerClass(
     class InputSourcePopup extends SwitcherPopup.SwitcherPopup {
-        _init(items, action, actionBackward, indicator, binding, parents, active) {
+        _init(items, action, actionBackward, indicator, binding, parents, active = "", selections = [0]) {
             super._init(items);
             
+            console.log("Init", selections);
+
             this.active = active;
             this._action = action;
             this._actionBackward = actionBackward;
             this._indicator = indicator;
-            this._selections = [0];
+            this._selections = selections;
             this.binding = binding;
             this.parents = parents;
 
@@ -22,10 +24,15 @@ const ProjectSwitcherPopup = GObject.registerClass(
         }
 
         _initialSelection(backward, binding) {
-            for (const i of this._items) {
-                if (i.name == this.active) {
-                    this._select(Math.max(0, Math.min(this._items.indexOf(i) + (backward ? -1 : 1), this._items.length - 1)));
-                    return;
+            if (this.active == "") {
+                this._select(this._selections[this._selections.length -1])
+                return
+            } else {
+                for (const i of this._items) {
+                    if (this.active != "" && i.name == this.active) {
+                        this._select(Math.max(0, Math.min(this._items.indexOf(i) + (backward ? -1 : 1), this._items.length - 1)));
+                        return;
+                    }
                 }
             }
             if (this._items.length > 0) {
@@ -51,10 +58,8 @@ const ProjectSwitcherPopup = GObject.registerClass(
                 let new_items = this.parents.pop();
                 this._selections.pop();
 
-                _switcherPopup = new ProjectSwitcherPopup(new_items, this._action, this._actionBackward/* Backwards*/, this._indicator, this.binding, this.parents, this.active);
-                _switcherPopup.connect('destroy', () => {
-                    _switcherPopup = null;
-                });
+                console.log("asd", new_items, this._selections);
+                const _switcherPopup = new ProjectSwitcherPopup(new_items, this._action, this._actionBackward/* Backwards*/, this._indicator, this.binding, this.parents, "", this._selections);
                 if (!_switcherPopup.show(this.binding.is_reversed(), this.binding.get_name(), this.binding.get_mask()))
                     _switcherPopup.fadeAndDestroy();
 
@@ -69,13 +74,11 @@ const ProjectSwitcherPopup = GObject.registerClass(
                 this._selections.pop();
                 this._selections.push(this._selectedIndex);
                 this._selections.push(0);
+                console.log("Test", this._selections);
 
                 this.destroy();
 
-                _switcherPopup = new ProjectSwitcherPopup(children, this._action, this._actionBackward/* Backwards*/, this._indicator, this.binding, parents);
-                _switcherPopup.connect('destroy', () => {
-                    _switcherPopup = null;
-                });
+                const _switcherPopup = new ProjectSwitcherPopup(children, this._action, this._actionBackward/* Backwards*/, this._indicator, this.binding, parents, "", this._selections);
                 if (!_switcherPopup.show(this.binding.is_reversed(), this.binding.get_name(), this.binding.get_mask()))
                     _switcherPopup.fadeAndDestroy();
             }
