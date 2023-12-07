@@ -149,22 +149,29 @@ const Indicator = GObject.registerClass(
         this.add_child(this.panelIcon);
 
         this.menu.connect('open-state-changed', (menu, open) => {
+            this.menu_open = open;
+
             if (open) {
                 this.updateUI();
-            } 
+            }
         });
         this.updateUI();
     }
 
     updateUI() {
-        this.menu.removeAll();
-        
-        let items = []
         this.config = getConfig();
         this.active = this.config.active;
         
         this.panelIcon.text = this.active;
+
+        if (this.menu_open) {
+            //Menu is already open
+            return;
+        }
         
+        this.menu.removeAll();        
+        let items = []
+
         const list = new PopupMenu.PopupMenuSection();
            
         const addItem = (prj, menu, path, depth) => {
@@ -188,6 +195,9 @@ const Indicator = GObject.registerClass(
                     menu._getTopMenu().close();
                     // this.updateUI();
                 } else {
+                    if (depth > 0) {
+                        this.change_project(prj.name);
+                    }
                     for (const it of items) {
                         if (it != item) {
                             it.destroy();
