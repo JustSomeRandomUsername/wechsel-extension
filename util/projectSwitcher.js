@@ -10,8 +10,6 @@ const ProjectSwitcherPopup = GObject.registerClass(
         _init(items, action, actionBackward, indicator, binding, parents, active = "", selections = [0]) {
             super._init(items);
             
-            console.log("Init", selections);
-
             this.active = active;
             this._action = action;
             this._actionBackward = actionBackward;
@@ -58,7 +56,6 @@ const ProjectSwitcherPopup = GObject.registerClass(
                 let new_items = this.parents.pop();
                 this._selections.pop();
 
-                console.log("asd", new_items, this._selections);
                 const _switcherPopup = new ProjectSwitcherPopup(new_items, this._action, this._actionBackward/* Backwards*/, this._indicator, this.binding, this.parents, "", this._selections);
                 if (!_switcherPopup.show(this.binding.is_reversed(), this.binding.get_name(), this.binding.get_mask()))
                     _switcherPopup.fadeAndDestroy();
@@ -74,7 +71,6 @@ const ProjectSwitcherPopup = GObject.registerClass(
                 this._selections.pop();
                 this._selections.push(this._selectedIndex);
                 this._selections.push(0);
-                console.log("Test", this._selections);
 
                 this.destroy();
 
