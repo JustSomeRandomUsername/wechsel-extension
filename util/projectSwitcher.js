@@ -21,15 +21,55 @@ const ProjectSwitcherPopup = GObject.registerClass(
             this._switcherList = new ProjectSwitcher(this._items, parents.length != 0);
         }
 
+
+        _findIdx(items, active, backward) {
+            function clamp(x, len) {
+                return Math.max(0, Math.min(x, len - 1))
+            }
+            for (const i of items) {
+                const idx = items.indexOf(i);
+                if (i.name == this.active) {
+                    return [clamp(idx + (backward ? -1 : 1), items.length)];
+                }
+                if (i.children.length > 0 && idx != 0) {
+                    let child_idx = this._findIdx(i.children, active, backward);
+                    if (child_idx != -1) {
+                        return [clamp(idx, items.length)].concat(child_idx);
+                    }
+                }
+            }
+            return -1;
+        }
+
         _initialSelection(backward, binding) {
             if (this.active == "") {
+                //Opened by another projectSwitcher
                 this._select(this._selections[this._selections.length -1])
                 return
             } else {
-                for (const i of this._items) {
-                    if (this.active != "" && i.name == this.active) {
-                        this._select(Math.max(0, Math.min(this._items.indexOf(i) + (backward ? -1 : 1), this._items.length - 1)));
-                        return;
+                // Initial Opening
+                let idx = this._findIdx(this._items, this.active, backward);
+                if (idx != -1) {
+                    if (idx.length == 1) {
+                        this._select(idx[0]);
+                        return
+
+                    } else if (idx.length > 1) {
+                        
+                        //Open lower layer
+                        let parents = this.parents;
+                        let items = this._items;
+                        for(let i=0; i<idx.length-1; i++) {
+                            parents.push(items)
+                            let parent = items[idx[i]];
+                            items = [parent].concat(parent.children);
+                        }
+                        idx[idx.length-1] += 1
+                        this.destroy();
+                        const _switcherPopup = new ProjectSwitcherPopup(items, this._action, this._actionBackward/* Backwards*/, this._indicator, this.binding, parents, "", idx);
+                        if (!_switcherPopup.show(this.binding.is_reversed(), this.binding.get_name(), this.binding.get_mask()))
+                            _switcherPopup.fadeAndDestroy();
+                        return
                     }
                 }
             }
@@ -61,16 +101,18 @@ const ProjectSwitcherPopup = GObject.registerClass(
                     _switcherPopup.fadeAndDestroy();
 
             } else if (keysym == Clutter.KEY_Down) {
-                let children = this._items[this._selectedIndex].children;
+                let parent = this._items[this._selectedIndex]
               
-                if (children.length == 0) 
+                if (parent.children.length == 0) 
                     return Clutter.EVENT_STOP;
+                
+                let children = [parent].concat(parent.children);
 
                 let parents = this.parents;
                 parents.push(this._items);
                 this._selections.pop();
                 this._selections.push(this._selectedIndex);
-                this._selections.push(0);
+                this._selections.push(1);//select first item that isnt the parent
 
                 this.destroy();
 
