@@ -126,9 +126,10 @@ const interfaceXml = `
 const Indicator = GObject.registerClass(
     class Indicator extends PanelMenu.Button {
 
-    _init() {
+    _init(extension) {
         super._init(0.0, _('Project Indicator'));
 
+        this.extension = extension;
         this.config = {};
         this.active = "";
         this.current_path = ["default"];
@@ -232,8 +233,7 @@ const Indicator = GObject.registerClass(
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
         const new_project = new PopupMenu.PopupMenuItem(_('Settings'));
         new_project.connect('activate', () => {
-            Extension.openPreferences();
-            //TODO
+            this.extension.openPreferences();
         });
         this.menu.addMenuItem(new_project);
     }
@@ -266,7 +266,7 @@ export default class ProjectChangerExtension extends Extension {
     }
 
     enable() {
-        this._indicator = new Indicator();
+        this._indicator = new Indicator(this);
         panel.addToStatusArea(this._uuid, this._indicator);
 
         this.settings = this.getSettings();
