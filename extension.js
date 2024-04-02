@@ -70,10 +70,13 @@ const Foldout = GObject.registerClass({
     class Foldout extends PopupMenu.PopupBaseMenuItem {
     _init(
         name,
-        is_root = false
+        is_root = false,
+        indicator = undefined
     ) {
         this.ignore_next_hover = false;
         this.is_root = is_root;
+        this.indicator = indicator;
+        this.project_name = name;
 
         super._init({
             activate: true,
@@ -94,12 +97,27 @@ const Foldout = GObject.registerClass({
             y_expand: true,
         });
 
-        this._icon = new St.Icon({
-            icon_name: 'pan-end-symbolic',
-            icon_size: 16,
+
+        this._icon = new St.Button({
             style_class: 'popup-menu-icon',
+            can_focus: false,
+            child: new St.Icon({
+                icon_name: 'pan-end-symbolic',
+                icon_size: 16,
+            }),
         });
-        this._label = St.Button.new_with_label(_(name));
+        this._icon.connect('clicked', () => {
+            if (this.unfolded) {
+                this.close();            
+            } else {
+                this.open();
+            }
+        });
+        this._label = new St.Label({
+            text: name,
+            y_align: Clutter.ActorAlign.CENTER,
+        })
+        
         this._ornament = new St.Icon({
             icon_name: 'ornament-check-symbolic',
             icon_size: 16,
@@ -136,8 +154,11 @@ const Foldout = GObject.registerClass({
     }
 
     activate(event) {
+        console.log("activate", this.project_name);
         if (this.unfolded) {
-            this.close();
+            if (this.indicator) {
+                this.indicator.change_project(this.project_name);
+            }
         } else {
             this.open();
         }
@@ -155,8 +176,11 @@ const Foldout = GObject.registerClass({
                     this.ignore_next_hover = true;
                 }
                 if (item.ignore_next_hover != undefined && item.ignore_next_hover) {
+                    console.log("ignoring hover");
                     item.ignore_next_hover = false;
+                    
                 } else {
+                    console.log("hovered item");
                     item.set_hover(true);
                 }
                 return true;
@@ -364,12 +388,9 @@ const Indicator = GObject.registerClass(
                 });
             } else {
                 // the project has children and needs to be added as a submenu
-                const submenu = new Foldout(project.name, depth == 0);
+                const submenu = new Foldout(project.name, depth == 0, this);
                 
                 if(is_active) submenu.showOrnament();
-                submenu._label.connect('clicked', () => {
-                    this.change_project(project.name);
-                });
 
                 menu.addMenuItem(submenu);
                 let was_active = is_active;
