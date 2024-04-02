@@ -141,7 +141,7 @@ const Foldout = GObject.registerClass({
             // close menu when left arrow key is pressed on child
             item.connect('key-press-event', (actor, event) => {
                 let symbol = event.get_key_symbol();
-                if (symbol === Clutter.KEY_Left) {
+                if (symbol === Clutter.KEY_Left && !item.unfolded) {
                     this.close();
                     // focus this
                     this.grab_key_focus();
@@ -187,12 +187,12 @@ const Foldout = GObject.registerClass({
     vfunc_key_press_event(event) {
         let symbol = event.get_key_symbol();
 
-        if (symbol === Clutter.KEY_Right) {
+        if (symbol === Clutter.KEY_Right && (!this.unfolded || this.has_key_focus())) {
             this.open();
             // focus the first child in the child_container
             this.child_container.get_first_child().grab_key_focus();
             return Clutter.EVENT_STOP;
-        } else if (symbol === Clutter.KEY_Left && !this.unfolded) {
+        } else if (symbol === Clutter.KEY_Left && this.unfolded) {
             this.close();
             // focus this
             this.grab_key_focus();
