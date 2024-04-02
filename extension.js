@@ -70,7 +70,11 @@ const Foldout = GObject.registerClass({
     class Foldout extends PopupMenu.PopupBaseMenuItem {
     _init(
         name,
+        is_root = false
     ) {
+        this.ignore_next_hover = false;
+        this.is_root = is_root;
+
         super._init({
             activate: true,
             hover: true,
@@ -118,6 +122,17 @@ const Foldout = GObject.registerClass({
 
         this.add_accessible_state(Atk.StateType.EXPANDABLE);
         this.add_actor(this.box);
+
+        if (this.is_root) {
+            this.connect('enter-event', () => {
+                if (this.ignore_next_hover) {
+                    this.ignore_next_hover = false;
+                } else {
+                    this.set_hover(true);
+                }
+                return true;
+            });
+        }
     }
 
     activate(event) {
@@ -135,13 +150,22 @@ const Foldout = GObject.registerClass({
         if (item.connect) {
             // disable hover when the child container is hovered and this item is hovered
             item.connect('enter-event', () => {
-                this.set_hover(false);
+                if (this.hover) {
+                    this.set_hover(false);
+                    this.ignore_next_hover = true;
+                }
+                if (item.ignore_next_hover != undefined && item.ignore_next_hover) {
+                    item.ignore_next_hover = false;
+                } else {
+                    item.set_hover(true);
+                }
+                return true;
             });
 
             // close menu when left arrow key is pressed on child
             item.connect('key-press-event', (actor, event) => {
                 let symbol = event.get_key_symbol();
-                if (symbol === Clutter.KEY_Left && !item.unfolded) {
+                if (symbol === Clutter.KEY_Left && !item.unfolded && !this.is_root) {
                     this.close();
                     // focus this
                     this.grab_key_focus();
@@ -192,7 +216,7 @@ const Foldout = GObject.registerClass({
             // focus the first child in the child_container
             this.child_container.get_first_child().grab_key_focus();
             return Clutter.EVENT_STOP;
-        } else if (symbol === Clutter.KEY_Left && this.unfolded) {
+        } else if (symbol === Clutter.KEY_Left && this.unfolded && !this.is_root) {
             this.close();
             // focus this
             this.grab_key_focus();
@@ -325,35 +349,37 @@ const Indicator = GObject.registerClass(
         const buildProjectTree = (
             project,
             menu,
+            depth = 0,
         ) => {
-            let has_active = project.name == this.active;
+            let is_active = project.name == this.active;
             if (project.children.length == 0) {
                 // the project is a leaf and can be added as a button
                 let item = new PopupMenu.PopupMenuItem(project.name);
                 menu.addMenuItem(item);
 
-                if (has_active) item.setOrnament(PopupMenu.Ornament.CHECK);
+                if (is_active) item.setOrnament(PopupMenu.Ornament.CHECK);
 
                 item.connect('activate', () => {
                     this.change_project(project.name);
                 });
             } else {
                 // the project has children and needs to be added as a submenu
-                const submenu = new Foldout(project.name);
+                const submenu = new Foldout(project.name, depth == 0);
                 
-                if(has_active) submenu.showOrnament();
+                if(is_active) submenu.showOrnament();
                 submenu._label.connect('clicked', () => {
                     this.change_project(project.name);
                 });
 
                 menu.addMenuItem(submenu);
-                let were_active = has_active;
+                let was_active = is_active;
                 for (const child of project.children) {
-                    has_active |= buildProjectTree(child, submenu);
+                    is_active |= buildProjectTree(child, submenu, depth + 1);
                 }
-                if (has_active && !were_active) submenu.open();
+                // if this is active it should not be open, only if it isnt and a child is active
+                if (is_active && !was_active) submenu.open();
             }
-            return has_active;
+            return is_active;
         }
 
         buildProjectTree(this.config.all_prjs, this.item_projects_section);
