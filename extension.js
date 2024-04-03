@@ -55,7 +55,7 @@ const FoldoutChildren = GObject.registerClass(
             x_expand: true,
             y_expand: true,
         });
-        this.set_style('padding-left: 5px;');
+        this.add_style_class_name('foldout-children');
     }
 });
 
@@ -256,6 +256,9 @@ const Foldout = GObject.registerClass(
             // focus this
             this.grab_key_focus();
             return Clutter.EVENT_STOP;
+        } else if (symbol === Clutter.KEY_Down && this.has_key_focus()) {
+            this.child_container.get_first_child().grab_key_focus();
+            return Clutter.EVENT_STOP;
         }
 
         return super.vfunc_key_press_event(event);
@@ -401,7 +404,8 @@ const Indicator = GObject.registerClass(
                 let item = new PopupMenu.PopupMenuItem(project.name);
                 menu.addMenuItem(item);
 
-                if (is_active) item.setOrnament(PopupMenu.Ornament.CHECK);
+                if (is_active) item.label.add_style_class_name('active-project');
+                item.label.add_style_class_name('leaf-label');
 
                 item.connect('activate', () => {
                     this.change_project(project.name);
@@ -410,7 +414,8 @@ const Indicator = GObject.registerClass(
                 // the project has children and needs to be added as a submenu
                 const submenu = new Foldout(project.name, depth == 0, this, depth);
                 
-                if(is_active) submenu.showOrnament();
+                if(is_active) submenu._label.add_style_class_name('active-project');
+                submenu._label.add_style_class_name('submenu-label');
 
                 menu.addMenuItem(submenu);
                 let was_active = is_active;
