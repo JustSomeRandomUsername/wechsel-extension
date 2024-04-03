@@ -59,14 +59,7 @@ const FoldoutChildren = GObject.registerClass(
     }
 });
 
-const Foldout = GObject.registerClass({
-    Properties: {
-        'unfolded': GObject.ParamSpec.boolean(
-            'unfolded', 'unfolded', 'unfolded',
-            GObject.ParamFlags.READWRITE,
-            false
-        ),
-    }},
+const Foldout = GObject.registerClass(
     class Foldout extends PopupMenu.PopupBaseMenuItem {
     _init(
         name,
@@ -79,6 +72,7 @@ const Foldout = GObject.registerClass({
         this.indicator = indicator;
         this.project_name = name;
         this.depth = depth;
+        this.unfolded = false;
 
         super._init({
             activate: true,
@@ -138,17 +132,11 @@ const Foldout = GObject.registerClass({
         this.box.add_child(this.header_box);
         this.box.add_actor(this.child_container);
 
-        this.close();
-
         this.add_accessible_state(Atk.StateType.EXPANDABLE);
         this.add_actor(this.box);
 
 
-        this.indicator.connect('close_submenus', (a, close_depth) => {
-            if (close_depth === depth && this.unfolded) {
-                this.close();
-            }
-        });
+        this.close_submenus_connection;
         if (this.is_root) {
             this.connect('enter-event', () => {
                 if (this.ignore_next_hover) {
@@ -156,16 +144,32 @@ const Foldout = GObject.registerClass({
                 } else {
                     this.set_hover(true);
                 }
-                return true;
+                return Clutter.EVENT_STOP;
             });
         }
+
+        // Close this submenu when another submenu is opened
+        this.close_submenus_connection = this.indicator.connect('close_submenus', (a, close_depth, prj_name) => {
+            if (close_depth === this.depth && this.unfolded == true && prj_name != this.project_name) {
+                this.close();
+            }
+        });
+
+        this.connect('destroy', () => {
+            if (this.close_submenus_connection) {
+                this.indicator.disconnect(this.close_submenus_connection);
+            }
+        });
+        this.close()
     }
 
     activate(event) {
-        console.log("activate", this.project_name);
         if (this.unfolded) {
             if (this.indicator) {
                 this.indicator.change_project(this.project_name);
+            } else {
+                //This should not happen
+                this.close();
             }
         } else {
             this.open();
@@ -184,14 +188,12 @@ const Foldout = GObject.registerClass({
                     this.ignore_next_hover = true;
                 }
                 if (item.ignore_next_hover != undefined && item.ignore_next_hover) {
-                    console.log("ignoring hover");
                     item.ignore_next_hover = false;
                     
                 } else {
-                    console.log("hovered item");
                     item.set_hover(true);
                 }
-                return true;
+                return Clutter.EVENT_STOP;
             });
 
             // close menu when left arrow key is pressed on child
@@ -226,19 +228,19 @@ const Foldout = GObject.registerClass({
         }
     }
 
-    open() {
-        this.indicator.emit('close_submenus', this.depth);
+    open(emit_close_signal = true) {
+        if (emit_close_signal) {
+            this.indicator.emit('close_submenus', this.depth, this.project_name);
+        }
         this.unfolded = true;
         this._icon.icon_name = 'pan-down-symbolic';
         this.child_container.show();
-        this.notify("unfolded");
     }
 
     close() {
         this.unfolded = false;
         this._icon.icon_name = 'pan-end-symbolic';
         this.child_container.hide();
-        this.notify("unfolded");
     }
 
     vfunc_key_press_event(event) {
@@ -273,8 +275,9 @@ const Indicator = GObject.registerClass(
     {
         Signals: {
             'close_submenus': {
-                param_types: [GObject.TYPE_INT],
+                param_types: [GObject.TYPE_INT, GObject.TYPE_STRING],
             },
+            'clear_menu': {}
         },
     },
     class Indicator extends PanelMenu.Button {
@@ -376,6 +379,7 @@ const Indicator = GObject.registerClass(
         this.panelIcon.text = this.active;
         
         // clear the section
+        this.emit('clear_menu');
         this.item_projects_section.removeAll();
 
         /**
@@ -414,12 +418,14 @@ const Indicator = GObject.registerClass(
                     is_active |= buildProjectTree(child, submenu, depth + 1);
                 }
                 // if this is active it should not be open, only if it isnt and a child is active
-                if (is_active && !was_active) submenu.open();
+                if (is_active && !was_active) submenu.open(false);
             }
             return is_active;
         }
 
-        buildProjectTree(this.config.all_prjs, this.item_projects_section);
+        if (this.menu_open) {
+            buildProjectTree(this.config.all_prjs, this.item_projects_section);
+        }
     }
 
     change_project(name) {
@@ -429,6 +435,7 @@ const Indicator = GObject.registerClass(
             [GLib.build_filenamev([GLib.get_home_dir(), '.local/bin/change-prj']), name],//TODO find a better way to get the path of the executable 
             Gio.SubprocessFlags.NONE
         );
+        // Close the Menu
         this.menu.close();
     }
 });
