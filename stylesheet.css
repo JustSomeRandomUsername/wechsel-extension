@@ -4,6 +4,10 @@
     font-weight: bold;
 }
 
+.leaf:last-child {
+    margin-bottom: 0;
+}
+
 .leaf-label {
     padding-left: 18px;
 }
@@ -16,6 +20,7 @@
     padding-left: 5px;
 }
 
-.foldout-open {
-    padding-bottom: 8px;
+.open {
+    margin-bottom: 0;
+    padding-bottom: 0;
 }

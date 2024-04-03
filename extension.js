@@ -234,12 +234,17 @@ const Foldout = GObject.registerClass(
         }
         this.unfolded = true;
         this._icon.icon_name = 'pan-down-symbolic';
+        this.box.add_style_class_name('open');
+        this.add_style_class_name('open');
         this.child_container.show();
     }
 
     close() {
         this.unfolded = false;
         this._icon.icon_name = 'pan-end-symbolic';
+        this.box.remove_style_class_name('open');
+        this.remove_style_class_name('open');
+        
         this.child_container.hide();
     }
 
@@ -406,6 +411,7 @@ const Indicator = GObject.registerClass(
 
                 if (is_active) item.label.add_style_class_name('active-project');
                 item.label.add_style_class_name('leaf-label');
+                item.add_style_class_name('leaf');
 
                 item.connect('activate', () => {
                     this.change_project(project.name);
