@@ -1,1 +1,26 @@
 /* Add your custom extension styling here */
+
+.active-project {
+    font-weight: bold;
+}
+
+.leaf:last-child {
+    margin-bottom: 0;
+}
+
+.leaf-label {
+    padding-left: 18px;
+}
+
+.submenu-label {
+    padding-left: 2px;
+}
+
+.foldout-children {
+    padding-left: 5px;
+}
+
+.open {
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
