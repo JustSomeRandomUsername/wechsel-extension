@@ -71,12 +71,14 @@ const Foldout = GObject.registerClass({
     _init(
         name,
         is_root = false,
-        indicator = undefined
+        indicator = undefined,
+        depth = 0
     ) {
         this.ignore_next_hover = false;
         this.is_root = is_root;
         this.indicator = indicator;
         this.project_name = name;
+        this.depth = depth;
 
         super._init({
             activate: true,
@@ -141,6 +143,12 @@ const Foldout = GObject.registerClass({
         this.add_accessible_state(Atk.StateType.EXPANDABLE);
         this.add_actor(this.box);
 
+
+        this.indicator.connect('close_submenus', (a, close_depth) => {
+            if (close_depth === depth && this.unfolded) {
+                this.close();
+            }
+        });
         if (this.is_root) {
             this.connect('enter-event', () => {
                 if (this.ignore_next_hover) {
@@ -219,6 +227,7 @@ const Foldout = GObject.registerClass({
     }
 
     open() {
+        this.indicator.emit('close_submenus', this.depth);
         this.unfolded = true;
         this._icon.icon_name = 'pan-down-symbolic';
         this.child_container.show();
@@ -261,6 +270,13 @@ const Foldout = GObject.registerClass({
 
 
 const Indicator = GObject.registerClass(
+    {
+        Signals: {
+            'close_submenus': {
+                param_types: [GObject.TYPE_INT],
+            },
+        },
+    },
     class Indicator extends PanelMenu.Button {
 
     _init(extension) {
@@ -388,7 +404,7 @@ const Indicator = GObject.registerClass(
                 });
             } else {
                 // the project has children and needs to be added as a submenu
-                const submenu = new Foldout(project.name, depth == 0, this);
+                const submenu = new Foldout(project.name, depth == 0, this, depth);
                 
                 if(is_active) submenu.showOrnament();
 
