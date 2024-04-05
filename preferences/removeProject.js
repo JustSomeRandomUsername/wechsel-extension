@@ -94,7 +94,6 @@ class RemoveProjectPage extends Adw.PreferencesPage {
         openButton.connect('clicked', () => {
             const config = getConfig();
             
-            console.log("Opening folder for project: " + config.active);
             let proc = Gio.Subprocess.new(
                 ["change-prj",
                     "--get-url",

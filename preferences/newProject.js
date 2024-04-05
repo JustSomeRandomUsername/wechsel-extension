@@ -82,7 +82,6 @@ class NewProjectPage extends Adw.PreferencesPage {
                 ],
                 Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
             );
-            console.log("Adding project");
             proc.communicate_utf8_async(null, null, (subprocess /*@type {Gio.Subprocess}*/, result /*@type {Gio.AsyncResult}*/, data) => {
                 const [success, stdout, stderr] = proc.communicate_utf8_finish(result)
                 if (stderr != "") {

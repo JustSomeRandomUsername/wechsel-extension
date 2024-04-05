@@ -96,7 +96,6 @@ export const ShortcutSettingWidget = class extends Adw.ActionRow {
     _onKeyPressed(_widget, keyval, keycode, state) {
         let mask = state & Gtk.accelerator_get_default_mod_mask();
         mask &= ~Gdk.ModifierType.LOCK_MASK;
-        console.log("Key pressed: ", keyval, keycode, state)
             
         if (!mask && keyval === Gdk.KEY_Escape) {
             this._editor.close();
