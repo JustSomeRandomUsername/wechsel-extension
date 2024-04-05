@@ -1,10 +1,3 @@
-// const { ExtensionUtils } = imports.misc.extensionUtils;
-// const Me = ExtensionUtils.getCurrentExtension();
-// const { getConfig } = Me.imports.util.utils;
-import GLib from 'gi://GLib';
-import Gtk from 'gi://Gtk';
-import Adw from 'gi://Adw';
-import Gio from 'gi://Gio';
 import { getConfig } from './util/utils.js';
 
 import {ExtensionPreferences, gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
@@ -27,9 +20,9 @@ export default class Preferences extends ExtensionPreferences {
     
         // Create a preferences page, with a single group
         const generalPage = new GeneralPrefs.GeneralPage(settings, SettingsKey);
-        const new_prj_page = new NewPrefs.NewPage(settings, SettingsKey, config);
+        const new_prj_page = new NewPrefs.NewPage(config, window);
         
-        const rm_prj_page = new RemovePrefs.RemovePage(settings, SettingsKey);
+        const rm_prj_page = new RemovePrefs.RemovePage(window);
 
         window.add(generalPage);
         window.add(new_prj_page);
@@ -40,12 +33,4 @@ export default class Preferences extends ExtensionPreferences {
     }
     
 }
-
-
-// const _ = ExtensionUtils.gettext;
-// const GETTEXT_DOMAIN = 'my-indicator-extension';
-
-// function init() {
-//     ExtensionUtils.initTranslations(GETTEXT_DOMAIN);
-// }
 

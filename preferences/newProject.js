@@ -7,7 +7,7 @@ import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensio
 
 export var NewPage = GObject.registerClass(
 class NewProjectPage extends Adw.PreferencesPage {
-    _init(settings, settingsKey, config) {
+    _init(config, window) {
         super._init({
             title: _('New Project'),
             icon_name: 'document-new-symbolic',
@@ -52,7 +52,7 @@ class NewProjectPage extends Adw.PreferencesPage {
             const row = new Adw.ActionRow({ title: folder[0] });
             add_prj_group.add(row);
             const toggle = new Gtk.Switch({
-                active: ["Desktop", "Downloads"].includes(folder[0]),
+                active: true,
                 valign: Gtk.Align.CENTER,
             });
             folders.push([toggle, folder[0]]);
@@ -73,13 +73,35 @@ class NewProjectPage extends Adw.PreferencesPage {
         add_prj_group.add(createButton);
     
         createButton.connect('clicked', () => {
-            GLib.spawn_command_line_sync(GLib.build_filenamev([GLib.get_home_dir(), ".local/bin", "change-prj "]) +
-            "--new --parent "+ name_list.get_string(parentRow.get_selected())+
-            ' --folders="'+ folders.filter((x) => x[0].active).map((x) => x[1]).join(" ")+ '" '+name.text);
-    
+            const proc = Gio.Subprocess.new(
+                ["change-prj", 
+                    '--new',
+                    '--parent', name_list.get_string(parentRow.get_selected()),
+                    '--folders=' +folders.filter((x) => x[0].active).map((x) => x[1]).join(" "),
+                    name.text
+                ],
+                Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
+            );
+            console.log("Adding project");
+            proc.communicate_utf8_async(null, null, (subprocess /*@type {Gio.Subprocess}*/, result /*@type {Gio.AsyncResult}*/, data) => {
+                const [success, stdout, stderr] = proc.communicate_utf8_finish(result)
+                if (stderr != "") {
+                    //  Create a dialog to show the error
+                    const dialog = new Gtk.AlertDialog({
+                        message: 'An error occurred while adding the project',
+                        detail: stderr,
+                        modal: true,
+                        buttons: [
+                                'Ok',
+                        ],
+                    });
+                    dialog.show(window);
+                }
+            });
+            
             name.text = "";
             for (const folder of folders) {
-                folder[0].active = ["Desktop", "Downloads"].includes(folder);
+                folder[0].active = true;
             }
             parentRow.set_selected(0);
             //TODO update UI
