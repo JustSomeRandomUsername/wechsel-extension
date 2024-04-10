@@ -1,3 +1,3 @@
-# prj-switch-extension
+# Wechsel Gnome Extension
 
-This Gnome Extension is the Ui for the prj-switch cli utility.
+This Gnome Extension is the Ui for the [Wechsel](https://github.com/JustSomeRandomUsername/wechsel) cli utility.

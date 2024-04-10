@@ -1,10 +1,11 @@
 {
-  "name": "Project Changer",
-  "description": "Project Changer",
+  "name": "Wechsel",
+  "description": "Wechsel",
   "uuid": "purple@transistor.local",
-  "settings-schema": "org.gnome.shell.extensions.prjchange",
+  "settings-schema": "org.gnome.shell.extensions.wechsel",
   "shell-version": [
     "44",
-    "45"
+    "45",
+    "45.1"
   ]
 }

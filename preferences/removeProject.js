@@ -50,9 +50,9 @@ class RemoveProjectPage extends Adw.PreferencesPage {
             dialog.choose(window, null, (a,b) => {
                 if (a.choose_finish(b) == 1) {
                     const proc = Gio.Subprocess.new(
-                        ["change-prj", 
-                            '--remove', 
-                            prj_name
+                        ["wechsel",
+                            prj_name,
+                            'remove', 
                         ],
                         Gio.SubprocessFlags.NONE
                     );
@@ -95,9 +95,9 @@ class RemoveProjectPage extends Adw.PreferencesPage {
             const config = getConfig();
             
             let proc = Gio.Subprocess.new(
-                ["change-prj",
-                    "--get-url",
-                    config.active
+                ["wechsel",
+                    config.active,
+                    "get-path",
                 ],
                 Gio.SubprocessFlags.STDOUT_PIPE
             );

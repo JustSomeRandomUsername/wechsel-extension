@@ -40,7 +40,7 @@ import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 
 const interfaceXml = `
     <node>
-        <interface name="org.gnome.shell.extensions.prjchange.service">
+        <interface name="org.gnome.shell.extensions.wechsel.service">
             <method name="Reload"/>
         </interface>
     </node>
@@ -443,7 +443,7 @@ const Indicator = GObject.registerClass(
         this.active = name;
         this.panelIcon.text = name;
         Gio.Subprocess.new(
-            [GLib.build_filenamev([GLib.get_home_dir(), '.local/bin/change-prj']), name],//TODO find a better way to get the path of the executable 
+            ["wechsel", name],
             Gio.SubprocessFlags.NONE
         );
         // Close the Menu
@@ -497,12 +497,12 @@ export default class ProjectChangerExtension extends Extension {
             serviceInstance = new DbusService();
             exportedObject = Gio.DBusExportedObject.wrapJSObject(interfaceXml, serviceInstance);
             serviceInstance._indicator = this._indicator;
-            exportedObject.export(connection, '/org/gnome/shell/extensions/prjchange/service');
+            exportedObject.export(connection, '/org/gnome/shell/extensions/wechsel/service');
         }
 
         this.ownerId = Gio.bus_own_name(
             Gio.BusType.SESSION,
-            'org.gnome.shell.extensions.prjchange',
+            'org.gnome.shell.extensions.wechsel',
             Gio.BusNameOwnerFlags.NONE,
             onBusAcquired.bind(this),
             () => {},
