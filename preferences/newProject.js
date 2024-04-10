@@ -118,12 +118,12 @@ class NewProjectPage extends Adw.PreferencesPage {
                 }
             });
             
+            // Reset the form
             name.text = "";
             for (const folder of folders) {
                 folder[0].active = true;
             }
             parentRow.set_selected(0);
-            //TODO update UI
         });
     }
 });

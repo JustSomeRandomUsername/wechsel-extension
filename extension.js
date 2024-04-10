@@ -22,7 +22,6 @@ import St from 'gi://St';
 import Atk from 'gi://Atk';
 import GObject from 'gi://GObject';
 import Gio from 'gi://Gio';
-import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
 import Clutter from 'gi://Clutter';
@@ -282,7 +281,6 @@ const Foldout = GObject.registerClass(
     }
 });
 
-
 const Indicator = GObject.registerClass(
     {
         Signals: {
@@ -324,15 +322,12 @@ const Indicator = GObject.registerClass(
          * @type {boolean} */
         this.menu_open = false;
 
-        this.current_path = ["default"]; //TODO
-        const filepath2 = GLib.build_filenamev([GLib.get_home_dir(), 'Desktop']);
-        const file2 = Gio.File.new_for_path(filepath2);
-        const info = file2.query_info('standard::*',Gio.FileQueryInfoFlags.NOFOLLOW_SYMLINKS, null);
-        
-        if (info.get_is_symlink()) {
-            const a = info.get_symlink_target().split("/");
-            this.active = a[a.length -2];//TODO this seems wrong it should read the json file
-        }
+        // Get the current active project
+        this.config = getConfig();
+        /**
+         * name of the active project
+         * @type {string} */
+        this.active = this.config.active;
         
         /**
          * Text label inside the button indicator

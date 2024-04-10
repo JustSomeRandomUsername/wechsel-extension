@@ -31,7 +31,7 @@ class InputSourceSwitcher extends SwitcherPopup.SwitcherList {
 
         this._arrow_up = new St.DrawingArea({ style_class: 'switcher-arrow' });
         this._arrow_up.connect('repaint', () => SwitcherPopup.drawArrow(this._arrow_up, St.Side.TOP));
-        this.add_actor(this._arrow_up);
+        this.add_child(this._arrow_up);
         if (!has_parent) 
             this._arrow_up.hide();
 
@@ -62,7 +62,7 @@ class InputSourceSwitcher extends SwitcherPopup.SwitcherList {
         let arrow = new St.DrawingArea({ style_class: 'switcher-arrow' });
         arrow.connect('repaint', () => SwitcherPopup.drawArrow(arrow, St.Side.BOTTOM));
         this._arrows.push(arrow);
-        this.add_actor(arrow);
+        this.add_child(arrow);
         
         // Arr is hidden if there are no children
         if (item.children.length === 0 || root) {
