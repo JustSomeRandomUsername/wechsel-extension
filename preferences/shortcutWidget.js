@@ -1,6 +1,14 @@
 /**
 Wechsel
+
+Copyright (C) 2022 Pakaoraki
 Copyright (C) 2024 JustSomeRandomUsername
+
+The following code is a derivative work of the code from the Caffeine (gnome-shell-extension-caffeine) project, 
+which is licensed under GPLv2. In accordance with their copyright notice this code is therefore licensed under the terms 
+of the GNU Public License, verison 3.
+
+// https://github.com/eonpatapon/gnome-shell-extension-caffeine/blob/master/caffeine%40patapon.info/preferences/generalPage.js
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
