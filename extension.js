@@ -18,7 +18,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 SPDX-License_identifier: GPL-3.0-or-later
 */
 
-/* exported init */
 import St from 'gi://St';
 import Atk from 'gi://Atk';
 import GObject from 'gi://GObject';
@@ -36,6 +35,7 @@ import { getConfig } from './util/utils.js';
 import { ProjectSwitcherPopup } from './util/projectSwitcher.js'
 
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
+import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 const interfaceXml = `
     <node>
@@ -48,8 +48,8 @@ const interfaceXml = `
 
 const FoldoutChildren = GObject.registerClass(
     class FoldoutChildren extends St.BoxLayout {
-    _init() {
-        super._init({
+    constructor() {
+        super({
             vertical: true,
             x_expand: true,
             y_expand: true,
@@ -60,25 +60,25 @@ const FoldoutChildren = GObject.registerClass(
 
 const Foldout = GObject.registerClass(
     class Foldout extends PopupMenu.PopupBaseMenuItem {
-    _init(
+    constructor(
         name,
         is_root = false,
         indicator = undefined,
         depth = 0
     ) {
+        super({
+            activate: true,
+            hover: true,
+            can_focus: true,
+            style_class: 'popup-menu-item',
+        });
+
         this.ignore_next_hover = false;
         this.is_root = is_root;
         this.indicator = indicator;
         this.project_name = name;
         this.depth = depth;
         this.unfolded = false;
-
-        super._init({
-            activate: true,
-            hover: true,
-            can_focus: true,
-            style_class: 'popup-menu-item',
-        });
 
         this.box = new St.BoxLayout({
             vertical: true,
@@ -129,10 +129,10 @@ const Foldout = GObject.registerClass(
         this.child_container = new FoldoutChildren(this);
 
         this.box.add_child(this.header_box);
-        this.box.add_actor(this.child_container);
+        this.box.add_child(this.child_container);
 
         this.add_accessible_state(Atk.StateType.EXPANDABLE);
-        this.add_actor(this.box);
+        this.add_child(this.box);
 
 
         this.close_submenus_connection;
@@ -149,20 +149,15 @@ const Foldout = GObject.registerClass(
 
         // Close this submenu when another submenu is opened
         this.close_submenus_connection = this.indicator.connect('close_submenus', (a, close_depth, prj_name) => {
-            if (close_depth === this.depth && this.unfolded == true && prj_name != this.project_name) {
+            if (close_depth === this.depth && this.unfolded === true && prj_name !== this.project_name) {
                 this.close();
             }
         });
 
-        this.connect('destroy', () => {
-            if (this.close_submenus_connection) {
-                this.indicator.disconnect(this.close_submenus_connection);
-            }
-        });
         this.close()
     }
 
-    activate(event) {
+    activate(_event) {
         if (this.unfolded) {
             if (this.indicator) {
                 this.indicator.change_project(this.project_name);
@@ -176,7 +171,7 @@ const Foldout = GObject.registerClass(
     }
 
     addMenuItem(item) {
-        this.child_container.add_actor(item);
+        this.child_container.add_child(item);
 
         // disable hover when the child container is hovered and this item is hovered
         if (item.connect) {
@@ -186,7 +181,7 @@ const Foldout = GObject.registerClass(
                     this.set_hover(false);
                     this.ignore_next_hover = true;
                 }
-                if (item.ignore_next_hover != undefined && item.ignore_next_hover) {
+                if (item.ignore_next_hover !== undefined && item.ignore_next_hover) {
                     item.ignore_next_hover = false;
                     
                 } else {
@@ -196,7 +191,7 @@ const Foldout = GObject.registerClass(
             });
 
             // close menu when left arrow key is pressed on child
-            item.connect('key-press-event', (actor, event) => {
+            item.connect('key-press-event', (_actor, event) => {
                 let symbol = event.get_key_symbol();
                 if (symbol === Clutter.KEY_Left && !item.unfolded && !this.is_root) {
                     this.close();
@@ -223,6 +218,7 @@ const Foldout = GObject.registerClass(
                     }
                     return Clutter.EVENT_STOP;
                 }
+                return Clutter.EVENT_PROPAGATE;
             });
         }
     }
@@ -320,7 +316,7 @@ const Indicator = GObject.registerClass(
          * @type {boolean} */
         this.menu_open = false;
 
-        this.current_path = ["default"];
+        this.current_path = ["default"]; //TODO
         const filepath2 = GLib.build_filenamev([GLib.get_home_dir(), 'Desktop']);
         const file2 = Gio.File.new_for_path(filepath2);
         const info = file2.query_info('standard::*',Gio.FileQueryInfoFlags.NOFOLLOW_SYMLINKS, null);
@@ -351,6 +347,9 @@ const Indicator = GObject.registerClass(
             if (open) {
                 // refresh the popupmenu
                 this.updateUI();
+            } else {
+                // Clear the menu
+                this.item_projects_section.removeAll();
             }
         });
 
@@ -402,11 +401,14 @@ const Indicator = GObject.registerClass(
             menu,
             depth = 0,
         ) => {
-            let is_active = project.name == this.active;
-            if (project.children.length == 0) {
+            let is_active = project.name === this.active;
+            if (project.children.length === 0) {
                 // the project is a leaf and can be added as a button
                 let item = new PopupMenu.PopupMenuItem(project.name);
                 menu.addMenuItem(item);
+                menu.connect('destroy', () => {
+                    console.log("destroy leaf");
+                });
 
                 if (is_active) item.label.add_style_class_name('active-project');
                 item.label.add_style_class_name('leaf-label');
@@ -417,7 +419,7 @@ const Indicator = GObject.registerClass(
                 });
             } else {
                 // the project has children and needs to be added as a submenu
-                const submenu = new Foldout(project.name, depth == 0, this, depth);
+                const submenu = new Foldout(project.name, depth === 0, this, depth);
                 
                 if(is_active) submenu._label.add_style_class_name('active-project');
                 submenu._label.add_style_class_name('submenu-label');
@@ -448,6 +450,11 @@ const Indicator = GObject.registerClass(
         // Close the Menu
         this.menu.close();
     }
+
+    destroy() {
+        this.item_projects_section.removeAll();
+        super.destroy()
+    }
 });
 
 function _switchInputSource(display, window, binding) {
@@ -459,6 +466,12 @@ function _switchInputSource(display, window, binding) {
     if (!_switcherPopup.show(binding.get_name().endsWith("backward"), binding.get_name(), binding.get_mask()))
         _switcherPopup.fadeAndDestroy();
 
+}
+
+class DbusService {
+    Reload() {
+        this._indicator.updateUI();
+    }
 }
 
 export default class ProjectChangerExtension extends Extension {
@@ -505,7 +518,7 @@ export default class ProjectChangerExtension extends Extension {
             Gio.BusNameOwnerFlags.NONE,
             onBusAcquired.bind(this),
             () => {},
-            () => {});           
+            () => {});
     }
 
     disable() {
@@ -534,12 +547,5 @@ export default class ProjectChangerExtension extends Extension {
         return new Gio.Settings({ settings_schema: schemaObj });
     }
 }
-
-class DbusService {
-    Reload() {
-        this._indicator.updateUI();
-    }
-}
-
 
 export { Indicator }

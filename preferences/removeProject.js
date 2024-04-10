@@ -26,10 +26,10 @@ import Gio from 'gi://Gio';
 import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 import { getConfig } from '../util/utils.js';
 
-export var RemovePage = GObject.registerClass(
+export const RemovePage = GObject.registerClass(
 class RemoveProjectPage extends Adw.PreferencesPage {
-    _init(window) {
-        super._init({
+    constructor(window) {
+        super({
             title: _('Remove Project'),
             icon_name: 'edit-delete-symbolic',
             name: 'RemoveProjectPage'
@@ -54,7 +54,7 @@ class RemoveProjectPage extends Adw.PreferencesPage {
         removeButton.connect('clicked', () => {
             let config = getConfig();
             let prj_name = config.active;
-            const message = 'Are you sure you want to remove \"'+ prj_name +'\"?';
+            const message = 'Are you sure you want to remove "'+ prj_name +'"?';
     
             //  Create a dialog to confirm the action
             const dialog = new Gtk.AlertDialog({
@@ -68,7 +68,7 @@ class RemoveProjectPage extends Adw.PreferencesPage {
             });
     
             dialog.choose(window, null, (a,b) => {
-                if (a.choose_finish(b) == 1) {
+                if (a.choose_finish(b) === 1) {
                     const proc = Gio.Subprocess.new(
                         ["wechsel",
                             prj_name,
@@ -77,11 +77,11 @@ class RemoveProjectPage extends Adw.PreferencesPage {
                         Gio.SubprocessFlags.NONE
                     );
 
-                    proc.communicate_utf8_async(null, null, (subprocess /*@type {Gio.Subprocess}*/, result /*@type {Gio.AsyncResult}*/, data) => {
-                        const [success, stdout, stderr] = proc.communicate_utf8_finish(result)
+                    proc.communicate_utf8_async(null, null, (subprocess /*@type {Gio.Subprocess}*/, result /*@type {Gio.AsyncResult}*/, _data) => {
+                        const [success, _stdout, stderr] = proc.communicate_utf8_finish(result)
                         if (!success) {
                             //  Create a dialog to show the error
-                            const dialog = new Gtk.AlertDialog({
+                            const dialog2 = new Gtk.AlertDialog({
                                 message: 'An error occurred while removing the project',
                                 detail: stderr,
                                 modal: true,
@@ -89,7 +89,7 @@ class RemoveProjectPage extends Adw.PreferencesPage {
                                         'Ok',
                                 ],
                             });
-                            dialog.show();
+                            dialog2.show();
                         }
                     });
                 }
@@ -122,9 +122,9 @@ class RemoveProjectPage extends Adw.PreferencesPage {
                 Gio.SubprocessFlags.STDOUT_PIPE
             );
 
-            proc.communicate_utf8_async(null, null, (subprocess /*@type {Gio.Subprocess}*/, result /*@type {Gio.AsyncResult}*/, data) => {
-                const [success, stdout, stderr] = proc.communicate_utf8_finish(result)
-                if (stdout != "") {
+            proc.communicate_utf8_async(null, null, (subprocess /*@type {Gio.Subprocess}*/, result /*@type {Gio.AsyncResult}*/, _data) => {
+                const [_success, stdout, _stderr] = proc.communicate_utf8_finish(result)
+                if (stdout !== "") {
                     const folder = 'file://'+stdout.trim();
                     Gio.AppInfo.launch_default_for_uri(folder, null);
                 }

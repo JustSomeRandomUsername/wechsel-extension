@@ -26,10 +26,10 @@ import Gio from 'gi://Gio';
 import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 import { ShortcutSettingWidget } from './shortcutWidget.js';
 
-export var GeneralPage = GObject.registerClass(
+export const GeneralPage = GObject.registerClass(
 class GeneralSettingsPage extends Adw.PreferencesPage {
-    _init(settings, settingsKey) {
-        super._init({
+    constructor(settings, settingsKey) {
+        super({
             title: _('General'),
             icon_name: 'preferences-system-symbolic',
             name: 'GeneralSettingsPage'

@@ -25,10 +25,10 @@ import Gio from 'gi://Gio';
 
 import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
-export var NewPage = GObject.registerClass(
+export const NewPage = GObject.registerClass(
 class NewProjectPage extends Adw.PreferencesPage {
-    _init(config, window) {
-        super._init({
+    constructor(config, window) {
+        super({
             title: _('New Project'),
             icon_name: 'document-new-symbolic',
             name: 'NewProjectPage'
@@ -102,9 +102,9 @@ class NewProjectPage extends Adw.PreferencesPage {
                 ],
                 Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
             );
-            proc.communicate_utf8_async(null, null, (subprocess /*@type {Gio.Subprocess}*/, result /*@type {Gio.AsyncResult}*/, data) => {
-                const [success, stdout, stderr] = proc.communicate_utf8_finish(result)
-                if (stderr != "") {
+            proc.communicate_utf8_async(null, null, (subprocess /*@type {Gio.Subprocess}*/, result /*@type {Gio.AsyncResult}*/, _data) => {
+                const [_success, _stdout, stderr] = proc.communicate_utf8_finish(result)
+                if (stderr !== "") {
                     //  Create a dialog to show the error
                     const dialog = new Gtk.AlertDialog({
                         message: 'An error occurred while adding the project',
