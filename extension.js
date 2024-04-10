@@ -133,14 +133,16 @@ const Foldout = GObject.registerClass(
         this.add_accessible_state(Atk.StateType.EXPANDABLE);
         this.add_child(this.box);
 
+        this.set_track_hover(false);
+
         if (this.is_root) {
             this.connect('enter-event', () => {
                 if (this.ignore_next_hover) {
                     this.ignore_next_hover = false;
                 } else {
+                    this.indicator.emit('hover_changed');
                     this.set_hover(true);
                 }
-                return Clutter.EVENT_STOP;
             });
         }
 
@@ -148,6 +150,13 @@ const Foldout = GObject.registerClass(
         this.close_submenus_connection = this.indicator.connect('close_submenus', (a, close_depth, prj_name) => {
             if (close_depth === this.depth && this.unfolded === true && prj_name !== this.project_name) {
                 this.close();
+            }
+        });
+
+        // Set hover to false when another submenu is hovered
+        this.hover_changed_connection = this.indicator.connect('hover_changed', () => {
+            if (this.hover) {
+                this.set_hover(false);
             }
         });
 
@@ -183,9 +192,9 @@ const Foldout = GObject.registerClass(
                     item.ignore_next_hover = false;
                     
                 } else {
+                    this.indicator.emit('hover_changed');
                     item.set_hover(true);
                 }
-                return Clutter.EVENT_STOP;
             });
 
             // close menu when left arrow key is pressed on child
@@ -274,9 +283,16 @@ const Foldout = GObject.registerClass(
         for (let child of this.children) {
             child.destroy();
         }
+        if (this.hover_changed_connection) {
+            this.indicator.disconnect(this.hover_changed_connection);
+            this.hover_changed_connection = null;
+        }
         if (this.close_submenus_connection) {
             this.indicator.disconnect(this.close_submenus_connection);
+            this.close_submenus_connection = null;
         }
+        this.box?.destroy();
+        this.box = null;
         super.destroy();
     }
 });
@@ -287,6 +303,7 @@ const Indicator = GObject.registerClass(
             'close_submenus': {
                 param_types: [GObject.TYPE_INT, GObject.TYPE_STRING],
             },
+            'hover_changed': {}
         },
     },
     class Indicator extends PanelMenu.Button {
