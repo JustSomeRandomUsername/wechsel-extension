@@ -35,7 +35,6 @@ import { getConfig } from './util/utils.js';
 import { ProjectSwitcherPopup } from './util/projectSwitcher.js'
 
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
-import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 const interfaceXml = `
     <node>
@@ -286,7 +285,7 @@ const Indicator = GObject.registerClass(
     class Indicator extends PanelMenu.Button {
 
     _init(extension) {
-        super._init(0.0, _('Project Indicator'));
+        super._init(0.0, 'Project Indicator');
 
         /**
          * The PopupMenu reference of the indicator
@@ -365,7 +364,7 @@ const Indicator = GObject.registerClass(
         /**
          * reference to the Settings item in the menu
          * @type {PopupMenu.PopupMenuItem} */
-        this.item_settings = new PopupMenu.PopupMenuItem(_('Settings'));
+        this.item_settings = new PopupMenu.PopupMenuItem('Settings');
         // open preferences page when settings is activated
         this.item_settings.connect('activate', () => {
             this.extension.openPreferences();
