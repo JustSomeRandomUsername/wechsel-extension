@@ -78,6 +78,7 @@ const Foldout = GObject.registerClass(
         this.project_name = name;
         this.depth = depth;
         this.unfolded = false;
+        this.children = [];
 
         this.box = new St.BoxLayout({
             vertical: true,
@@ -133,8 +134,6 @@ const Foldout = GObject.registerClass(
         this.add_accessible_state(Atk.StateType.EXPANDABLE);
         this.add_child(this.box);
 
-
-        this.close_submenus_connection;
         if (this.is_root) {
             this.connect('enter-event', () => {
                 if (this.ignore_next_hover) {
@@ -171,6 +170,7 @@ const Foldout = GObject.registerClass(
 
     addMenuItem(item) {
         this.child_container.add_child(item);
+        this.children.push(item);
 
         // disable hover when the child container is hovered and this item is hovered
         if (item.connect) {
@@ -270,6 +270,16 @@ const Foldout = GObject.registerClass(
     hideOrnament() {
         this._ornament.hide();
     }
+
+    destroy() {
+        for (let child of this.children) {
+            child.destroy();
+        }
+        if (this.close_submenus_connection) {
+            this.indicator.disconnect(this.close_submenus_connection);
+        }
+        super.destroy();
+    }
 });
 
 
@@ -279,7 +289,6 @@ const Indicator = GObject.registerClass(
             'close_submenus': {
                 param_types: [GObject.TYPE_INT, GObject.TYPE_STRING],
             },
-            'clear_menu': {}
         },
     },
     class Indicator extends PanelMenu.Button {
@@ -384,7 +393,6 @@ const Indicator = GObject.registerClass(
         this.panelIcon.text = this.active;
         
         // clear the section
-        this.emit('clear_menu');
         this.item_projects_section.removeAll();
 
         /**
@@ -405,9 +413,6 @@ const Indicator = GObject.registerClass(
                 // the project is a leaf and can be added as a button
                 let item = new PopupMenu.PopupMenuItem(project.name);
                 menu.addMenuItem(item);
-                menu.connect('destroy', () => {
-                    console.log("destroy leaf");
-                });
 
                 if (is_active) item.label.add_style_class_name('active-project');
                 item.label.add_style_class_name('leaf-label');
