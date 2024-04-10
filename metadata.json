@@ -1,7 +1,7 @@
 {
   "name": "Wechsel",
   "description": "Wechsel",
-  "uuid": "purple@transistor.local",
+  "uuid": "wechsel@transistor.local",
   "settings-schema": "org.gnome.shell.extensions.wechsel",
   "shell-version": [
     "44",
