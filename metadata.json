@@ -1,11 +1,13 @@
 {
   "name": "Wechsel",
-  "description": "Wechsel",
+  "description": "Organise your computer with projects",
   "uuid": "wechsel@transistor.local",
   "settings-schema": "org.gnome.shell.extensions.wechsel",
   "shell-version": [
     "44",
     "45",
-    "45.1"
-  ]
+    "45.1",
+    "45.5"
+  ],
+  "url": "https://github.com/JustSomeRandomUsername/wechsel-extension"
 }
