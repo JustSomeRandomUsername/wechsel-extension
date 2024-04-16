@@ -497,6 +497,16 @@ export default class ProjectChangerExtension extends Extension {
     }
 
     enable() {
+        // Check if Wechsel is installed
+        try {
+            Gio.Subprocess.new(
+                ["wechsel", "--version"],
+                Gio.SubprocessFlags.NONE,
+            );
+        } catch {
+            throw new Error("Wechsel is not installed. Please install it to use this extension. https://github.com/JustSomeRandomUsername/wechsel");
+        };
+
         this._indicator = new Indicator(this);
         panel.addToStatusArea(this._uuid, this._indicator);
 
@@ -538,12 +548,19 @@ export default class ProjectChangerExtension extends Extension {
     }
 
     disable() {
-        this._indicator.destroy();
+        if (this.indicator?._keybindingAction) {
+            wm.removeKeybinding("switch-projects");
+        }
+        if (this.indicator?._keybindingActionBackwards) {
+            wm.removeKeybinding("switch-projects-backward");
+        }
+        
+        this._indicator?.destroy();
         this._indicator = null;
-        wm.removeKeybinding("switch-projects");
-        wm.removeKeybinding("switch-projects-backward");
 
-        Gio.bus_unown_name(this.ownerId);
+        if (this.ownerId) {
+            Gio.bus_unown_name(this.ownerId);
+        }
     }
 
     settings_new_schema(schema) {
