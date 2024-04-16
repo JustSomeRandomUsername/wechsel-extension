@@ -22,6 +22,7 @@ import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
 import GObject from 'gi://GObject';
 import Gio from 'gi://Gio';
+import { getConfig } from '../util/utils.js';
 
 import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
@@ -39,14 +40,7 @@ class NewProjectPage extends Adw.PreferencesPage {
         this.add(add_prj_group);
     
         // Setup List of All Project Names 
-        const name_list = new Gtk.StringList();
-        const addItem = (prj) => {
-            name_list.append(prj.name)
-            for (const child of prj.children) {
-                addItem(child);
-            }
-        }
-        addItem(config.all_prjs);
+        const name_list = this.updateProjectList();
     
         // Parent Selector 
         let parentRow = new Adw.ComboRow({
@@ -116,6 +110,7 @@ class NewProjectPage extends Adw.PreferencesPage {
                     });
                     dialog.show(window);
                 }
+                parentRow.set_model(this.updateProjectList());
             });
             
             // Reset the form
@@ -125,5 +120,20 @@ class NewProjectPage extends Adw.PreferencesPage {
             }
             parentRow.set_selected(0);
         });
+    }
+
+    updateProjectList() {
+        const config = getConfig();
+        // Setup List of All Project Names 
+        const name_list = new Gtk.StringList();
+        const addItem = (prj) => {
+            name_list.append(prj.name)
+            for (const child of prj.children) {
+                addItem(child);
+            }
+        }
+        addItem(config.all_prjs);
+
+        return name_list;
     }
 });
