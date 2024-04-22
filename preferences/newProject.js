@@ -89,8 +89,8 @@ class NewProjectPage extends Adw.PreferencesPage {
         createButton.connect('clicked', () => {
             this.proc = Gio.Subprocess.new(
                 ["wechsel",
-                    name.text,
                     'new',
+                    name.text,
                     '--parent', this.name_list.get_string(this.parentRow.get_selected()),
                     '--folders=' +folders.filter((x) => x[0].active).map((x) => x[1]).join(" "),
                 ],

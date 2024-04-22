@@ -71,8 +71,9 @@ class RemoveProjectPage extends Adw.PreferencesPage {
                 if (a.choose_finish(b) === 1) {
                     this.proc = Gio.Subprocess.new(
                         ["wechsel",
-                            prj_name,
                             'remove', 
+                            prj_name,
+                            '-y',
                         ],
                         Gio.SubprocessFlags.NONE
                     );
@@ -116,8 +117,8 @@ class RemoveProjectPage extends Adw.PreferencesPage {
             
             this.proc2 = Gio.Subprocess.new(
                 ["wechsel",
-                    config.active,
                     "get-path",
+                    config.active,
                 ],
                 Gio.SubprocessFlags.STDOUT_PIPE
             );
