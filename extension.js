@@ -444,12 +444,12 @@ const Indicator = GObject.registerClass(
                 submenu._label.add_style_class_name('submenu-label');
 
                 menu.addMenuItem(submenu);
-                let was_active = is_active;
+                let self_active = is_active;
                 for (const child of project.children) {
                     is_active |= buildProjectTree(child, submenu, depth + 1);
                 }
                 // if this is active it should not be open, only if it isnt and a child is active
-                if (is_active && !was_active) submenu.open(false);
+                if ((is_active && !self_active) || (self_active && depth === 0)) submenu.open(false);
             }
             return is_active;
         }
