@@ -38,7 +38,6 @@ export default class Preferences extends ExtensionPreferences {
         const settings = this.getSettings();
         const config = getConfig();
     
-        // Create a preferences page, with a single group
         const generalPage = new GeneralPrefs.GeneralPage(settings, SettingsKey);
         const new_prj_page = new NewPrefs.NewPage(config, window);
         

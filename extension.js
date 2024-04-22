@@ -390,6 +390,9 @@ const Indicator = GObject.registerClass(
         this.item_settings.connect('activate', () => {
             this.extension.openPreferences();
         });
+        this.item_settings.connect('enter-event', () => {
+            this.emit('hover_changed');
+        });
         this.menu.addMenuItem(this.item_settings);
 
         // initial update
@@ -459,7 +462,9 @@ const Indicator = GObject.registerClass(
     change_project(name) {
         this.active = name;
         this.panelIcon.text = name;
-        Gio.Subprocess.new(
+
+        this._proc?.force_exit();
+        this._proc = Gio.Subprocess.new(
             ["wechsel", name],
             Gio.SubprocessFlags.NONE
         );
@@ -469,13 +474,14 @@ const Indicator = GObject.registerClass(
 
     destroy() {
         this.item_projects_section.removeAll();
+        this._proc?.force_exit();
         super.destroy()
     }
 });
 
 function _switchInputSource(display, window, binding) {
     let config = getConfig();
-    let _switcherPopup = new ProjectSwitcherPopup([config.all_prjs, ...config.all_prjs.children], this._keybindingAction, this._keybindingActionBackwards, this._indicator, binding, [], config.active);
+    let _switcherPopup = new ProjectSwitcherPopup(this._keybindingAction, this._keybindingActionBackwards, this._indicator, binding, config.all_prjs, config.active);
     _switcherPopup.connect('destroy', () => {
         _switcherPopup = null;
     });
@@ -499,7 +505,7 @@ export default class ProjectChangerExtension extends Extension {
     enable() {
         // Check if Wechsel is installed
         try {
-            Gio.Subprocess.new(
+            this._proc2 = Gio.Subprocess.new(
                 ["wechsel", "--version"],
                 Gio.SubprocessFlags.NONE,
             );
@@ -515,27 +521,27 @@ export default class ProjectChangerExtension extends Extension {
         
         this._keybindingAction =
             wm.addKeybinding('switch-projects',
-                this.settings_new_schema(this.metadata["settings-schema"]),
+                this.settings,
                 Meta.KeyBindingFlags.NONE,
                 Shell.ActionMode.NORMAL,
                 _switchInputSource.bind(this));
 
         this._keybindingActionBackwards =
             wm.addKeybinding('switch-projects-backward',
-                this.settings_new_schema(this.metadata["settings-schema"]),
+                this.settings,
                 Meta.KeyBindingFlags.NONE,
                 Shell.ActionMode.NORMAL,
                 _switchInputSource.bind(this));
 
         let serviceInstance = null;
-        let exportedObject = null;
+        this.exportedObject = null;
         
         function onBusAcquired(connection) {
             // Create the class instance, then the D-Bus object
             serviceInstance = new DbusService();
-            exportedObject = Gio.DBusExportedObject.wrapJSObject(interfaceXml, serviceInstance);
+            this.exportedObject = Gio.DBusExportedObject.wrapJSObject(interfaceXml, serviceInstance);
             serviceInstance._indicator = this._indicator;
-            exportedObject.export(connection, '/org/gnome/shell/extensions/wechsel/service');
+            this.exportedObject.export(connection, '/org/gnome/shell/extensions/wechsel/service');
         }
 
         this.ownerId = Gio.bus_own_name(
@@ -548,37 +554,19 @@ export default class ProjectChangerExtension extends Extension {
     }
 
     disable() {
-        if (this.indicator?._keybindingAction) {
-            wm.removeKeybinding("switch-projects");
-        }
-        if (this.indicator?._keybindingActionBackwards) {
-            wm.removeKeybinding("switch-projects-backward");
-        }
+        wm.removeKeybinding("switch-projects");
+        wm.removeKeybinding("switch-projects-backward");
         
         this._indicator?.destroy();
         this._indicator = null;
+        this.settings = null;
+
+        this._proc2?.force_exit();
+        
+        this.exportedObject.unexport();
 
         if (this.ownerId) {
             Gio.bus_unown_name(this.ownerId);
         }
     }
-
-    settings_new_schema(schema) {
-        const GioSSS = Gio.SettingsSchemaSource;
-        const schemaDir = this.dir.get_child("schemas");
-    
-        let schemaSource = schemaDir.query_exists(null) ?
-            GioSSS.new_from_directory(schemaDir.get_path(), GioSSS.get_default(), false) :
-            GioSSS.get_default();
-    
-        const schemaObj = schemaSource.lookup(schema, true);
-    
-        if (!schemaObj) {
-            throw new Error("Schema " + schema + " could not be found for extension "
-                + this.metadata.uuid + ". Please check your installation.")
-        }
-        return new Gio.Settings({ settings_schema: schemaObj });
-    }
 }
-
-export { Indicator }

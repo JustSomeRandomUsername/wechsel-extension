@@ -69,7 +69,7 @@ class RemoveProjectPage extends Adw.PreferencesPage {
     
             dialog.choose(window, null, (a,b) => {
                 if (a.choose_finish(b) === 1) {
-                    const proc = Gio.Subprocess.new(
+                    this.proc = Gio.Subprocess.new(
                         ["wechsel",
                             prj_name,
                             'remove', 
@@ -77,8 +77,8 @@ class RemoveProjectPage extends Adw.PreferencesPage {
                         Gio.SubprocessFlags.NONE
                     );
 
-                    proc.communicate_utf8_async(null, null, (subprocess /*@type {Gio.Subprocess}*/, result /*@type {Gio.AsyncResult}*/, _data) => {
-                        const [success, _stdout, stderr] = proc.communicate_utf8_finish(result)
+                    this.proc.communicate_utf8_async(null, null, (subprocess /*@type {Gio.Subprocess}*/, result /*@type {Gio.AsyncResult}*/, _data) => {
+                        const [success, _stdout, stderr] = this.proc.communicate_utf8_finish(result)
                         if (!success) {
                             //  Create a dialog to show the error
                             const dialog2 = new Gtk.AlertDialog({
@@ -114,7 +114,7 @@ class RemoveProjectPage extends Adw.PreferencesPage {
         openButton.connect('clicked', () => {
             const config = getConfig();
             
-            let proc = Gio.Subprocess.new(
+            this.proc2 = Gio.Subprocess.new(
                 ["wechsel",
                     config.active,
                     "get-path",
@@ -122,8 +122,8 @@ class RemoveProjectPage extends Adw.PreferencesPage {
                 Gio.SubprocessFlags.STDOUT_PIPE
             );
 
-            proc.communicate_utf8_async(null, null, (subprocess /*@type {Gio.Subprocess}*/, result /*@type {Gio.AsyncResult}*/, _data) => {
-                const [_success, stdout, _stderr] = proc.communicate_utf8_finish(result)
+            this.proc2.communicate_utf8_async(null, null, (subprocess /*@type {Gio.Subprocess}*/, result /*@type {Gio.AsyncResult}*/, _data) => {
+                const [_success, stdout, _stderr] = this.proc2.communicate_utf8_finish(result)
                 if (stdout !== "") {
                     const folder = 'file://'+stdout.trim();
                     Gio.AppInfo.launch_default_for_uri(folder, null);
@@ -133,5 +133,14 @@ class RemoveProjectPage extends Adw.PreferencesPage {
 
         rm_prj_group.add(is_delete_row);
         rm_prj_group.add(open_project_folder);
+    }
+
+    destroy() {
+        super.destroy();
+        this.proc.force_exit();
+        this.proc = null;
+
+        this.proc2.force_exit();
+        this.proc2 = null;
     }
 });

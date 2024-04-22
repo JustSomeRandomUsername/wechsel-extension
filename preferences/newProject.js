@@ -40,14 +40,14 @@ class NewProjectPage extends Adw.PreferencesPage {
         this.add(add_prj_group);
     
         // Setup List of All Project Names 
-        const name_list = this.updateProjectList();
+        this.name_list = new Gtk.StringList();
     
         // Parent Selector 
-        let parentRow = new Adw.ComboRow({
+        this.parentRow = new Adw.ComboRow({
             title: 'Parent',
-            model: name_list,
+            model: this.name_list,
         });
-        add_prj_group.add(parentRow);
+        add_prj_group.add(this.parentRow);
     
         // Name Entry
         const entryRow = new Adw.ActionRow({ title: _('Name') });
@@ -87,17 +87,17 @@ class NewProjectPage extends Adw.PreferencesPage {
         add_prj_group.add(createButton);
     
         createButton.connect('clicked', () => {
-            const proc = Gio.Subprocess.new(
+            this.proc = Gio.Subprocess.new(
                 ["wechsel",
                     name.text,
                     'new',
-                    '--parent', name_list.get_string(parentRow.get_selected()),
+                    '--parent', this.name_list.get_string(this.parentRow.get_selected()),
                     '--folders=' +folders.filter((x) => x[0].active).map((x) => x[1]).join(" "),
                 ],
                 Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
             );
-            proc.communicate_utf8_async(null, null, (subprocess /*@type {Gio.Subprocess}*/, result /*@type {Gio.AsyncResult}*/, _data) => {
-                const [_success, _stdout, stderr] = proc.communicate_utf8_finish(result)
+            this.proc.communicate_utf8_async(null, null, (subprocess /*@type {Gio.Subprocess}*/, result /*@type {Gio.AsyncResult}*/, _data) => {
+                const [_success, _stdout, stderr] = this.proc.communicate_utf8_finish(result)
                 if (stderr !== "") {
                     //  Create a dialog to show the error
                     const dialog = new Gtk.AlertDialog({
@@ -110,7 +110,7 @@ class NewProjectPage extends Adw.PreferencesPage {
                     });
                     dialog.show(window);
                 }
-                parentRow.set_model(this.updateProjectList());
+                this.parentRow.set_model(this.updateProjectList());
             });
             
             // Reset the form
@@ -118,22 +118,34 @@ class NewProjectPage extends Adw.PreferencesPage {
             for (const folder of folders) {
                 folder[0].active = true;
             }
-            parentRow.set_selected(0);
+            this.parentRow.set_selected(0);
+        });
+
+
+        this.connect('map', () => {
+            this.parentRow.set_model(this.updateProjectList());
         });
     }
 
     updateProjectList() {
         const config = getConfig();
         // Setup List of All Project Names 
-        const name_list = new Gtk.StringList();
+        this.name_list = new Gtk.StringList();
         const addItem = (prj) => {
-            name_list.append(prj.name)
+            this.name_list.append(prj.name)
             for (const child of prj.children) {
                 addItem(child);
             }
         }
         addItem(config.all_prjs);
 
-        return name_list;
+        return this.name_list;
+    }
+
+    destroy() {
+        super.destroy();
+        this.proc.force_exit();
+        this.proc = null;
+        this.name_list = null;
     }
 });
