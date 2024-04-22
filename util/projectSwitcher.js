@@ -70,8 +70,6 @@ class InputSourceSwitcher extends SwitcherPopup.SwitcherList {
         }
 
         this.addItem(box, text);
-        // ui_item.add_accessible_state(Atk.StateType.EXPANDABLE);
-
     }
 
     vfunc_allocate(box) {
@@ -110,34 +108,70 @@ class InputSourceSwitcher extends SwitcherPopup.SwitcherList {
 
 const ProjectSwitcherPopup = GObject.registerClass(
 class InputSourcePopup extends SwitcherPopup.SwitcherPopup {
-    constructor(items, action, actionBackward, indicator, binding, parents, active = "", selections = [0]) {
-        super(items);
+    constructor(action, actionBackward, indicator, binding, root_prj, active = "", selections = []) {
+        
+        const a = ProjectSwitcherPopup.searchForActivePrj(root_prj, active, selections);
+        if (a === null) {
+            throw new Error("Selected a project that could not be found in the project tree, this should not happen");
+        }    
+        const [parent, newSelections] = a;
+        
+        super([parent, ...parent.children]);
         
         this.active = active;
         this._action = action;
         this._actionBackward = actionBackward;
         this._indicator = indicator;
-        this._selections = selections;
+        this._selections = newSelections;
         this.binding = binding;
-        this.parents = parents;
+        this.root_prj = root_prj;
 
-        this._switcherList = new ProjectSwitcher(this._items, parents.length !== 0);
+
+        this._switcherList = new ProjectSwitcher(this._items, this._selections.length !== 1);
+    }
+
+    static searchForActivePrj(parent, active, selections) {
+        if (active === "") {
+            if (selections.length === 2) {
+                return [parent.children[selections[0]], selections]
+            } else if (selections.length === 1) {
+                // selected root_project
+                return [parent, selections]
+            } else if (selections.length === 0) {
+                return [parent, [0]];
+            }
+            // was opened by another Popup so we don't have to search through the full tree
+            const idx = selections.shift();
+            let [a,b] = ProjectSwitcherPopup.searchForActivePrj(parent.children[idx], active, selections);
+            return [a, [idx, ...b]];
+        }
+        for (const [idx, child] of parent.children.entries()) {
+            if (child.name === active) {
+                return [parent, [...selections, idx]];
+            }
+            if (child.children.length > 0) {
+                const ret = ProjectSwitcherPopup.searchForActivePrj(child, active, [...selections, idx]);
+                if (ret !== null) {
+                    return ret;
+                }
+            }
+        }
+        if (parent.name === active) {
+            return [parent, [0]] // this should only happen if root is selected
+        }
+        return null
     }
 
 
-    _findIdx(items, active, backward) {
-        function clamp(x, len) {
-            return Math.max(0, Math.min(x, len - 1))
-        }
-        for (const i of items) {
-            const idx = items.indexOf(i);
-            if (i.name === this.active) {
-                return [clamp(idx + (backward ? -1 : 1), items.length)];
-            }
-            if (i.children.length > 0 && idx !== 0) {
-                let child_idx = this._findIdx(i.children, active, backward);
-                if (child_idx !== -1) {
-                    return [clamp(idx, items.length)].concat(child_idx);
+    findIdx(items, backward) {
+        for (const [idx, item] of items.entries()) {
+            if (item.name === this.active) {
+                const i = ((idx - 1 + (backward ? -1 : 1)) % (items.length-1));// the minus one plus one is to adjust circle only around the child items and ignore the parent entry
+                // Wrap around if at the edge
+                if (i >= 0) {
+                    return i+1;
+                } else {
+                    return items.length + i;
                 }
             }
         }
@@ -147,38 +181,27 @@ class InputSourcePopup extends SwitcherPopup.SwitcherPopup {
     _initialSelection(backward, _binding) {
         if (this.active === "") {
             //Opened by another projectSwitcher
-            this._select(this._selections[this._selections.length -1])
+            this._select(Math.min(this._items.length, this._selections[this._selections.length -1]+1))//plus one because of the parent
             return
         } else {
             // Initial Opening
-            let idx = this._findIdx(this._items, this.active, backward);
+            let idx = this.findIdx(this._items, backward);
             if (idx !== -1) {
-                if (idx.length === 1) {
-                    this._select(idx[0]);
-                    return
-
-                } else if (idx.length > 1) {
-                    
-                    //Open lower layer
-                    let parents = this.parents;
-                    let items = this._items;
-                    for(let i=0; i<idx.length-1; i++) {
-                        parents.push(items)
-                        let parent = items[idx[i]];
-                        items = [parent].concat(parent.children);
-                    }
-                    idx[idx.length-1] += 1
-                    this.destroy();
-                    const _switcherPopup = new ProjectSwitcherPopup(items, this._action, this._actionBackward/* Backwards*/, this._indicator, this.binding, parents, "", idx);
-                    if (!_switcherPopup.show(this.binding.is_reversed(), this.binding.get_name(), this.binding.get_mask()))
-                        _switcherPopup.fadeAndDestroy();
-                    return
-                }
+                this._select(idx);
+                return
             }
         }
         if (this._items.length > 0) {
             this._select(0);
         }
+    }
+
+    showChildPopup() {
+        this._switcherPopup.connect('destroy', () => {
+            this._switcherPopup = null;
+        });    
+        if (!this._switcherPopup.show(this.binding.is_reversed(), this.binding.get_name(), this.binding.get_mask()))
+            this._switcherPopup.fadeAndDestroy();
     }
 
     _keyPressHandler(keysym, action) {
@@ -192,36 +215,29 @@ class InputSourcePopup extends SwitcherPopup.SwitcherPopup {
             this._select(this._next());
 
         else if (keysym === Clutter.KEY_Up) {
-            if (this.parents[this.parents.length-1].length === 0) 
+            if (this._selections.length === 1)// parent is root
                 return Clutter.EVENT_STOP;
 
             this.destroy();
-            let new_items = this.parents.pop();
             this._selections.pop();
 
-            const _switcherPopup = new ProjectSwitcherPopup(new_items, this._action, this._actionBackward/* Backwards*/, this._indicator, this.binding, this.parents, "", this._selections);
-            if (!_switcherPopup.show(this.binding.is_reversed(), this.binding.get_name(), this.binding.get_mask()))
-                _switcherPopup.fadeAndDestroy();
+            this._switcherPopup = new ProjectSwitcherPopup(this._action, this._actionBackward, this._indicator, this.binding, this.root_prj, "", this._selections);
+            this.showChildPopup();
 
         } else if (keysym === Clutter.KEY_Down) {
             let parent = this._items[this._selectedIndex]
-            
-            if (parent.children.length === 0) 
+
+            if (parent.children.length === 0 || this._selectedIndex === 0)
                 return Clutter.EVENT_STOP;
             
-            let children = [parent].concat(parent.children);
-
-            let parents = this.parents;
-            parents.push(this._items);
             this._selections.pop();
-            this._selections.push(this._selectedIndex);
-            this._selections.push(1);//select first item that isnt the parent
+            this._selections.push(this._selectedIndex - 1);//minus 1 to because at index 0 we inserted the parent
+            this._selections.push(0);//select first item
 
             this.destroy();
 
-            const _switcherPopup = new ProjectSwitcherPopup(children, this._action, this._actionBackward/* Backwards*/, this._indicator, this.binding, parents, "", this._selections);
-            if (!_switcherPopup.show(this.binding.is_reversed(), this.binding.get_name(), this.binding.get_mask()))
-                _switcherPopup.fadeAndDestroy();
+            this._switcherPopup = new ProjectSwitcherPopup(this._action, this._actionBackward, this._indicator, this.binding, this.root_prj, "", this._selections);
+            this.showChildPopup();
         }
         else
             return Clutter.EVENT_PROPAGATE;
