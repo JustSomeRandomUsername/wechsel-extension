@@ -143,9 +143,9 @@ class NewProjectPage extends Adw.PreferencesPage {
     }
 
     destroy() {
-        super.destroy();
         this.proc.force_exit();
         this.proc = null;
         this.name_list = null;
+        super.destroy();
     }
 });

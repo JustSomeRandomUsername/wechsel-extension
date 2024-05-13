@@ -562,6 +562,7 @@ export default class ProjectChangerExtension extends Extension {
         this.settings = null;
 
         this._proc2?.force_exit();
+        this._proc2 = null;
         
         this.exportedObject.unexport();
 

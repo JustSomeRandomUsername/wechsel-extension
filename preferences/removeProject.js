@@ -137,11 +137,11 @@ class RemoveProjectPage extends Adw.PreferencesPage {
     }
 
     destroy() {
-        super.destroy();
         this.proc.force_exit();
         this.proc = null;
-
+        
         this.proc2.force_exit();
         this.proc2 = null;
+        super.destroy();
     }
 });
