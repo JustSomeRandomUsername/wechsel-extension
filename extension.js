@@ -43,6 +43,41 @@ const interfaceXml = `
     </node>
 `;
 
+const FoldoutLeaf = GObject.registerClass(
+    {
+        Properties: {
+            'active-project': GObject.ParamSpec.string(
+                'active-project',
+                'Active Project',
+                'The currently active Project',
+                GObject.ParamFlags.READWRITE,
+                null
+            ),
+        },
+    },
+    class FoldoutLeaf extends PopupMenu.PopupMenuItem {
+    constructor(
+        name,
+        indicator
+    ) {
+        super(name);
+
+        this.connect('notify::active-project', (object, _pspec) => {
+            if (object.active_project === name) {
+                this.label.add_style_class_name('active-project');
+            } else {
+                this.label.remove_style_class_name('active-project');
+            }
+        });
+
+        this.label.add_style_class_name('leaf-label');
+        this.add_style_class_name('leaf');
+
+        this.connect('activate', () => {
+            indicator.change_project(name);
+        });
+    }
+});
 
 const FoldoutChildren = GObject.registerClass(
     class FoldoutChildren extends St.BoxLayout {
@@ -57,6 +92,17 @@ const FoldoutChildren = GObject.registerClass(
 });
 
 const Foldout = GObject.registerClass(
+    {
+        Properties: {
+            'active-project': GObject.ParamSpec.string(
+                'active-project',
+                'Active Project',
+                'The currently active Project',
+                GObject.ParamFlags.READWRITE,
+                null
+            ),
+        },
+    },
     class Foldout extends PopupMenu.PopupBaseMenuItem {
     constructor(
         name,
@@ -111,6 +157,19 @@ const Foldout = GObject.registerClass(
             text: name,
             y_align: Clutter.ActorAlign.CENTER,
         })
+        this._label.add_style_class_name('submenu-label');
+
+        this.connect('notify::active-project', (object, _pspec) => {
+            if (object.active_project === name) {
+                this._label.add_style_class_name('active-project');
+                if (!this.unfolded) {
+                    this.open();
+                }
+            } else {
+                this._label.remove_style_class_name('active-project');
+            }
+        });
+
         
         this._ornament = new St.Icon({
             icon_name: 'ornament-check-symbolic',
@@ -172,6 +231,7 @@ const Foldout = GObject.registerClass(
                 this.close();
             }
         } else {
+            this.indicator.change_project(this.project_name, false);
             this.open();
         }
     }
@@ -303,7 +363,16 @@ const Indicator = GObject.registerClass(
             'close_submenus': {
                 param_types: [GObject.TYPE_INT, GObject.TYPE_STRING],
             },
-            'hover_changed': {}
+            'hover_changed': {},
+        },
+        Properties: {
+            'active-project': GObject.ParamSpec.string(
+                'active-project',
+                'Active Project',
+                'The currently active Project',
+                GObject.ParamFlags.READWRITE,
+                null
+            ),
         },
     },
     class Indicator extends PanelMenu.Button {
@@ -329,10 +398,6 @@ const Indicator = GObject.registerClass(
          * @type {{active: string, all_prjs: Project}} */
         this.config = {};
         
-        /** 
-         * name of the active project
-         * @type {string} */
-        this.active = "";
 
         /**
          * tracks the state of the menu
@@ -341,17 +406,18 @@ const Indicator = GObject.registerClass(
 
         // Get the current active project
         this.config = getConfig();
+        
         /**
          * name of the active project
          * @type {string} */
-        this.active = this.config.active;
+        let active = this.config.active;
         
         /**
          * Text label inside the button indicator
          * @type {St.Label}
          */
         this.panelIcon = new St.Label({
-            text: this.active,
+            text: active,
             y_align: Clutter.ActorAlign.CENTER,
         })
         this.add_child(this.panelIcon);
@@ -366,10 +432,7 @@ const Indicator = GObject.registerClass(
             this.menu_open = open;
             if (open) {
                 // refresh the popupmenu
-                this.updateUI();
-            } else {
-                // Clear the menu
-                this.item_projects_section.removeAll();
+                this.updateUI(true);
             }
         });
 
@@ -395,20 +458,17 @@ const Indicator = GObject.registerClass(
         });
         this.menu.addMenuItem(this.item_settings);
 
+        // binds the active project name to the indicator button text
+        this.bind_property('active-project', this.panelIcon, 'text',
+            GObject.BindingFlags.SYNC_CREATE | GObject.BindingFlags.DEFAULT);
+
         // initial update
         this.updateUI();
     }
 
-    updateUI() {
+    updateUI(open = false) {
         // loads current config
         this.config = getConfig();
-        this.active = this.config.active;
-        
-        // sets the active project name to the indicator button
-        this.panelIcon.text = this.active;
-        
-        // clear the section
-        this.item_projects_section.removeAll();
 
         /**
          * Inserts all children of a project into the menu
@@ -423,44 +483,49 @@ const Indicator = GObject.registerClass(
             menu,
             depth = 0,
         ) => {
-            let is_active = project.name === this.active;
+            let is_active = this.active_project === project.name;
             if (project.children.length === 0) {
                 // the project is a leaf and can be added as a button
-                let item = new PopupMenu.PopupMenuItem(project.name);
+                let item = new FoldoutLeaf(project.name, this);
+
+                this.bind_property('active-project', item, 'active-project',
+                    GObject.BindingFlags.SYNC_CREATE | GObject.BindingFlags.DEFAULT);
+
                 menu.addMenuItem(item);
-
-                if (is_active) item.label.add_style_class_name('active-project');
-                item.label.add_style_class_name('leaf-label');
-                item.add_style_class_name('leaf');
-
-                item.connect('activate', () => {
-                    this.change_project(project.name);
-                });
             } else {
                 // the project has children and needs to be added as a submenu
                 const submenu = new Foldout(project.name, depth === 0, this, depth);
                 
-                if(is_active) submenu._label.add_style_class_name('active-project');
-                submenu._label.add_style_class_name('submenu-label');
+                this.bind_property('active-project', submenu, 'active-project',
+                    GObject.BindingFlags.SYNC_CREATE | GObject.BindingFlags.DEFAULT);
+    
 
-                menu.addMenuItem(submenu);
-                let self_active = is_active;
+                let self_active = this.active_project === project.name;
                 for (const child of project.children) {
                     is_active |= buildProjectTree(child, submenu, depth + 1);
                 }
                 // if this is active it should not be open, only if it isnt and a child is active
-                if ((is_active && !self_active) || (self_active && depth === 0)) submenu.open(false);
+                if (is_active || (self_active && depth === 0)) submenu.open(false);
+
+                menu.addMenuItem(submenu);
             }
             return is_active;
         }
 
-        if (this.menu_open) {
-            buildProjectTree(this.config.all_prjs, this.item_projects_section);
+        if (open || !this.menu_open) {
+            // clear the section
+            this.item_projects_section.removeAll();
+
+            if (this.menu_open) {
+                buildProjectTree(this.config.all_prjs, this.item_projects_section);
+            }
         }
+
+        this.active_project = this.config.active;
     }
 
-    change_project(name) {
-        this.active = name;
+    change_project(name, close = true) {
+        this.active_project = name;
         this.panelIcon.text = name;
 
         this._proc?.force_exit();
@@ -468,8 +533,10 @@ const Indicator = GObject.registerClass(
             ["wechsel", name],
             Gio.SubprocessFlags.NONE
         );
-        // Close the Menu
-        this.menu.close();
+        if (close) {
+            // Close the Menu
+            this.menu.close();
+        }
     }
 
     destroy() {
