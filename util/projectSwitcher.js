@@ -82,7 +82,7 @@ class InputSourceSwitcher extends SwitcherPopup.SwitcherList {
         let arrowWidth = arrowHeight * 2;
         
         // Get the current scroll position
-        let [value] = this._scrollView.hscroll.adjustment.get_values();
+        let [value] = this._scrollView.hscroll.adjustment.get_values();//TODO deprecated
 
         // Now allocate each arrow underneath its item
         let childBox = new Clutter.ActorBox();
@@ -218,11 +218,7 @@ class InputSourcePopup extends SwitcherPopup.SwitcherPopup {
             if (this._selections.length === 1)// parent is root
                 return Clutter.EVENT_STOP;
 
-            this.destroy();
-            this._selections.pop();
-
-            this._switcherPopup = new ProjectSwitcherPopup(this._action, this._actionBackward, this._indicator, this.binding, this.root_prj, "", this._selections);
-            this.showChildPopup();
+            this.nav_up();
 
         } else if (keysym === Clutter.KEY_Down) {
             let parent = this._items[this._selectedIndex]
@@ -230,19 +226,60 @@ class InputSourcePopup extends SwitcherPopup.SwitcherPopup {
             if (parent.children.length === 0 || this._selectedIndex === 0)
                 return Clutter.EVENT_STOP;
             
-            this._selections.pop();
-            this._selections.push(this._selectedIndex - 1);//minus 1 to because at index 0 we inserted the parent
-            this._selections.push(0);//select first item
-
-            this.destroy();
-
-            this._switcherPopup = new ProjectSwitcherPopup(this._action, this._actionBackward, this._indicator, this.binding, this.root_prj, "", this._selections);
-            this.showChildPopup();
+            this.nav_down();
         }
         else
             return Clutter.EVENT_PROPAGATE;
 
         return Clutter.EVENT_STOP;
+    }
+
+    nav_up() {
+        this._selections.pop();
+        this.spawn_child_popup();
+    }
+
+    nav_down() {
+        this._selections.pop();
+        this._selections.push(this._selectedIndex - 1);//minus 1 to because at index 0 we inserted the parent
+        this._selections.push(0);//select first item
+
+        this.spawn_child_popup();    
+    }
+
+    
+    spawn_child_popup() {
+        this.destroy();
+
+        this._switcherPopup = new ProjectSwitcherPopup(this._action, this._actionBackward, this._indicator, this.binding, this.root_prj, "", this._selections);
+        this.showChildPopup();
+    }
+
+
+
+    // This is called when a user clickes outside
+    vfunc_button_press_event() {
+        if (this._selections.length === 1)  {// parent is root
+            super.vfunc_button_press_event();
+            return;
+        }
+        
+        this.nav_up();
+    }
+
+
+    // This is called when an item is clicked with the mosue
+    _itemActivated(switcher, n) {
+        super._itemActivated(switcher, n);
+        let parent = this._items[this._selectedIndex]
+
+        if (parent.children.length === 0 || this._selectedIndex === 0) {
+            console.log("this should select");
+            super._itemActivated(switcher, n);
+            return;
+        }
+
+        this.nav_down();
     }
 
     _finish() {
