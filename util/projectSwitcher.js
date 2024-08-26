@@ -274,7 +274,6 @@ class InputSourcePopup extends SwitcherPopup.SwitcherPopup {
         let parent = this._items[this._selectedIndex]
 
         if (parent.children.length === 0 || this._selectedIndex === 0) {
-            console.log("this should select");
             super._itemActivated(switcher, n);
             return;
         }
