@@ -18,17 +18,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 SPDX-License_identifier: GPL-3.0-or-later
 */
 
-import { getConfig } from './util/utils.js';
-
-import {ExtensionPreferences, gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
+import { ExtensionPreferences, gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 import * as GeneralPrefs from './preferences/generalSettings.js';
 import * as NewPrefs from './preferences/newProject.js';
-import * as RemovePrefs from './preferences/removeProject.js';
 
 
 const SettingsKey = {
     SHOW_INDICATOR: 'show-indicator',
+    SEARCH_PROVIDER: 'activate-search-provider',
     SWITCH_PROJECTS: 'switch-projects',
     SWITCH_PROJECTS_BACKWARD: 'switch-projects-backward',
 };
@@ -36,20 +34,16 @@ const SettingsKey = {
 export default class Preferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
         const settings = this.getSettings();
-        const config = getConfig();
-    
+
         const generalPage = new GeneralPrefs.GeneralPage(settings, SettingsKey);
-        const new_prj_page = new NewPrefs.NewPage(config, window);
-        
-        const rm_prj_page = new RemovePrefs.RemovePage(window);
+        const new_prj_page = new NewPrefs.NewPage(window);
 
         window.add(generalPage);
         window.add(new_prj_page);
-        window.add(rm_prj_page);
-        
+
         // Make sure the window doesn't outlive the settings object
         window._settings = settings;
     }
-    
+
 }
 

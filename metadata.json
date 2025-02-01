@@ -4,7 +4,6 @@
   "uuid": "wechsel@transistor.local",
   "settings-schema": "org.gnome.shell.extensions.wechsel",
   "shell-version": [
-    "44",
     "45",
     "46",
     "47"

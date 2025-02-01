@@ -15,5 +15,9 @@
          <key name="show-indicator" type="b">
             <default>true</default>
         </key>
+
+          <key name="activate-search-provider" type="b">
+            <default>true</default>
+        </key>
     </schema>
 </schemalist>
