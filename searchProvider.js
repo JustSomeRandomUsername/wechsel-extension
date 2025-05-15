@@ -19,7 +19,7 @@ SPDX-License_identifier: GPL-3.0-or-later
 */
 import St from 'gi://St';
 import Gio from 'gi://Gio';
-import { callChangeProject, getConfig, getIcons, getProjectTree } from './util/utils.js';
+import { callChangeProject, getIcons, getProjectTree } from './util/utils.js';
 
 export class SearchProvider {
     constructor(extension) {
@@ -39,7 +39,7 @@ export class SearchProvider {
         // this.appInfo = app
         this.appInfo = {
             get_name: () => 'wechsel',
-            get_id: () => "org.gnome.Nautilus.desktop",
+            get_id: () => "gnome-control-center",
             get_icon: () => Gio.icon_new_for_string("user-home-symbolic"),
             should_show: () => true,
             launch: () => {
@@ -51,14 +51,14 @@ export class SearchProvider {
         this.isRemoteProvider = false;
 
         this.projects = []
-        getProjectTree.bind(this)(this._proc, (projects) => {
+        getProjectTree.bind(this)(this._proc, (projects, active) => {
             this.update_project_list(projects)
         });
 
     }
 
     update_project_list(projects) {
-        this.icons = getIcons(projects, getConfig())
+        this.icons = getIcons(projects)
         this.projects = Array.from(this.icons.keys())
     }
     /**

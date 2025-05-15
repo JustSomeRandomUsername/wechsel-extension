@@ -18,8 +18,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 SPDX-License_identifier: GPL-3.0-or-later
 */
 
-import GLib from 'gi://GLib';
-
 import St from 'gi://St';
 import Atk from 'gi://Atk';
 import GObject from 'gi://GObject';
@@ -32,7 +30,7 @@ import { wm, panel } from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
-import { callChangeProject, checkInstallation, getConfig, getIcons, getProjectTree } from './util/utils.js';
+import { callChangeProject, checkInstallation, getIcons, getProjectTree } from './util/utils.js';
 
 import { SearchProvider } from './searchProvider.js';
 import { ProjectSwitcherPopup } from './util/projectSwitcher.js'
@@ -396,11 +394,6 @@ const Indicator = GObject.registerClass(
             this.extension = extension;
 
             /**
-             * reference to the current config object
-             * @type {import('./util/utils.js').Config} */
-            this.config = getConfig();
-
-            /**
              * Is the wechsel tool installed
              * @type {boolean}
              */
@@ -417,8 +410,6 @@ const Indicator = GObject.registerClass(
             this.active_project = ""
             if (this.installed !== true) {
                 this.active_project = '--Error--'
-            } else if (this.config) {
-                this.active_project = this.config?.active;
             }
 
             /** 
@@ -440,7 +431,6 @@ const Indicator = GObject.registerClass(
 
                 this.menu_open = open;
                 if (open) {
-                    console.log('wechsel', GLib.getenv("PATH"))
                     if (this.installed !== true) {
                         this.installed = checkInstallation(this._proc)
 
@@ -459,7 +449,7 @@ const Indicator = GObject.registerClass(
             this.item_projects_section = new PopupMenu.PopupMenuSection();
             this.menu.addMenuItem(this.item_projects_section);
 
-            // seperator between the projects and the settings
+            // separator between the projects and the settings
             this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
             /**
@@ -485,9 +475,6 @@ const Indicator = GObject.registerClass(
         }
 
         updateUI(open = false) {
-            // loads current config
-            this.config = getConfig();
-
             if (this.installed !== true) {
                 return
             }
@@ -495,7 +482,7 @@ const Indicator = GObject.registerClass(
             /**
              * Inserts all children of a project into the menu
              * 
-             * @param {Project} project project object from the config
+             * @param {import('./util/utils.js').ProjectTree} project
              * @param {PopupMenu.PopupMenuSection | PopupMenu.PopupSubMenuMenuItem} menu parent object to insert the children into
              * 
              * @returns {boolean}
@@ -526,7 +513,7 @@ const Indicator = GObject.registerClass(
                     for (const child of project.children) {
                         is_active |= buildProjectTree(child, submenu, depth + 1);
                     }
-                    // if this is active it should not be open, only if it isnt and a child is active
+                    // if this is active it should not be open, only if it isn't and a child is active
                     if (is_active || (self_active && depth === 0)) submenu.open(false);
 
                     menu.addMenuItem(submenu);
@@ -538,14 +525,14 @@ const Indicator = GObject.registerClass(
                 // clear the section
                 this.item_projects_section.removeAll();
 
-                getProjectTree.bind(this)(this._proc, (projects) => {
+                getProjectTree.bind(this)(this._proc, (projects, active) => {
+                    this.active_project = active;
                     if (this.menu_open) {
                         buildProjectTree(projects, this.item_projects_section);
                     }
                     this.searchProvider?.update_project_list(projects)
                 });
             }
-            this.active_project = this.config?.active;
         }
 
         change_project(name, close = true) {
@@ -573,11 +560,10 @@ function _switchInputSource(display, window, binding) {
     if (this._indicator.installed !== true) {
         return
     }
-    let config = getConfig();
-    getProjectTree.bind(this)(this._proc, (projects) => {
-        let icons = getIcons(projects, config)
+    getProjectTree.bind(this)(this._proc, (projects, active) => {
+        let icons = getIcons(projects)
 
-        let _switcherPopup = new ProjectSwitcherPopup(this._keybindingAction, this._keybindingActionBackwards, this._indicator, binding, projects, config?.active, icons);
+        let _switcherPopup = new ProjectSwitcherPopup(this._keybindingAction, this._keybindingActionBackwards, this._indicator, binding, projects, active, icons);
         _switcherPopup.connect('destroy', () => {
             _switcherPopup = null;
         });

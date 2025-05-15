@@ -23,10 +23,10 @@ import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
 import GObject from 'gi://GObject';
 import Gio from 'gi://Gio';
+import { getProjectTree } from '../util/utils.js';
 
 import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 import { ShortcutSettingWidget } from './shortcutWidget.js';
-import { getConfig } from '../util/utils.js';
 
 export const GeneralPage = GObject.registerClass(
     class GeneralSettingsPage extends Adw.PreferencesPage {
@@ -114,23 +114,41 @@ export const GeneralPage = GObject.registerClass(
             });
             openProjectFolder.add_suffix(openButton);
             openButton.connect('clicked', () => {
-                const config = getConfig();
 
-                this._proc = Gio.Subprocess.new(
-                    ["wechsel", "path", config.active],
-                    Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
-                );
+                getProjectTree(this._proc, (projects, active) => {
+                    let recurse = (project) => {
+                        if (project.name == active) {
+                            return project
+                        }
+                        for (const child of project.children) {
+                            let prj = recurse(child)
+                            if (prj !== null) {
+                                return prj
+                            }
+                        }
+                        return null
+                    }
 
-                this._proc.communicate_utf8_async(null, null, (subprocess /*@type {Gio.Subprocess}*/, result /*@type {Gio.AsyncResult}*/, _data) => {
-                    const [_success, stdout, stderr] = this._proc.communicate_utf8_finish(result)
-                    if (stderr !== "") {
-                        Main.notifyError('An error occured', stderr);
-                    }
-                    if (stdout !== "") {
-                        const folder = `file://${stdout.trim()}`;
-                        Gio.AppInfo.launch_default_for_uri(folder, null);
-                    }
+                    let prj = recurse(projects)
+
+                    const folder = `file://${prj.path}`;
+                    Gio.AppInfo.launch_default_for_uri(folder, null);
                 });
+                // this._proc = Gio.Subprocess.new(
+                //     ["wechsel", "path", "$(wechsel active)"],//TODO Test
+                //     Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
+                // );
+
+                // this._proc.communicate_utf8_async(null, null, (subprocess /*@type {Gio.Subprocess}*/, result /*@type {Gio.AsyncResult}*/, _data) => {
+                //     const [_success, stdout, stderr] = this._proc.communicate_utf8_finish(result)
+                //     if (stderr !== "") {
+                //         Main.notifyError('An error occured', stderr);
+                //     }
+                //     if (stdout !== "") {
+                //         const folder = `file://${stdout.trim()}`;
+                //         Gio.AppInfo.launch_default_for_uri(folder, null);
+                //     }
+                // });
             });
             buttonGroup.add(openProjectFolder)
             this.add(buttonGroup);
