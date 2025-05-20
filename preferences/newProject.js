@@ -115,7 +115,6 @@ export const NewPage = GObject.registerClass(
 
                 const plugin_env = plugins.filter((x) => x[1].active).map((x) => x[0]).join(";")
                 // Set an environment variable
-                console.log('wechsel', plugin_env)
                 launcher.setenv("PLUGINS", plugin_env, true);
 
                 // Launch a subprocess (Example: `env` to check environment variables)
@@ -140,8 +139,6 @@ export const NewPage = GObject.registerClass(
                     if (stderr !== "") {
                         Main.notifyError('An error occurred while adding the project', stderr);
                     }
-
-                    console.log("wechsel", _stdout)
 
                     if (this.iconFile) {
                         this._proc = Gio.Subprocess.new(

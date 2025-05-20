@@ -86,7 +86,7 @@ const FoldoutChildren = GObject.registerClass(
     class FoldoutChildren extends St.BoxLayout {
         constructor() {
             super({
-                vertical: true,
+                orientation: Clutter.Orientation.VERTICAL,
                 x_expand: true,
                 y_expand: true,
             });
@@ -129,13 +129,13 @@ const Foldout = GObject.registerClass(
             this.children = [];
 
             this.box = new St.BoxLayout({
-                vertical: true,
+                orientation: Clutter.Orientation.VERTICAL,
                 x_expand: true,
                 y_expand: true
             });
 
             this.header_box = new St.BoxLayout({
-                vertical: false,
+                orientation: Clutter.Orientation.VERTICAL,
                 x_expand: true,
                 y_expand: true,
             });
@@ -556,10 +556,11 @@ const Indicator = GObject.registerClass(
         }
     });
 
-function _switchInputSource(display, window, binding) {
+function _switchInputSource(display, window, event, binding) {
     if (this._indicator.installed !== true) {
         return
     }
+    console.log("---- Test-------");
     getProjectTree.bind(this)(this._proc, (projects, active) => {
         let icons = getIcons(projects)
 

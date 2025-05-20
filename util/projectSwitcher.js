@@ -44,7 +44,9 @@ const ProjectSwitcher = GObject.registerClass(
         }
 
         _addIcon(item, root) {
-            let box = new St.BoxLayout({ vertical: true });
+            let box = new St.BoxLayout({
+                orientation: Clutter.Orientation.VERTICAL,
+            });
 
             let bin = new St.Bin({ style_class: 'input-source-switcher-symbol' });
 
@@ -96,13 +98,13 @@ const ProjectSwitcher = GObject.registerClass(
             let arrowWidth = arrowHeight * 2;
 
             // Get the current scroll position
-            let [value] = this._scrollView.hscroll.adjustment.get_values();//TODO deprecated
+            // let [value] = this._scrollView.hscroll.adjustment.get_values();//TODO deprecated
 
             // Now allocate each arrow underneath its item
             let childBox = new Clutter.ActorBox();
             for (let i = 0; i < this._items.length; i++) {
                 let itemBox = this._items[i].allocation;
-                childBox.x1 = -value + contentBox.x1 + Math.floor(itemBox.x1 + (itemBox.x2 - itemBox.x1 - arrowWidth) / 2);
+                childBox.x1 = /*-value + */contentBox.x1 + Math.floor(itemBox.x1 + (itemBox.x2 - itemBox.x1 - arrowWidth) / 2);
                 childBox.x2 = childBox.x1 + arrowWidth;
                 childBox.y1 = contentBox.y1 + itemBox.y2 + arrowHeight;
                 childBox.y2 = childBox.y1 + arrowHeight;
