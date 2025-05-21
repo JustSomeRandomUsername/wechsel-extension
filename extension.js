@@ -135,7 +135,7 @@ const Foldout = GObject.registerClass(
             });
 
             this.header_box = new St.BoxLayout({
-                orientation: Clutter.Orientation.VERTICAL,
+                orientation: Clutter.Orientation.HORIZONTAL,
                 x_expand: true,
                 y_expand: true,
             });
