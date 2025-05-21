@@ -53,7 +53,7 @@ export function getProjectTree(proc, lambda) {
     proc.communicate_utf8_async(null, null, (subprocess /*@type {Gio.Subprocess}*/, result /*@type {Gio.AsyncResult}*/, _data) => {
         const [success, stdout, stderr] = proc.communicate_utf8_finish(result)
         if (stderr !== "") {
-            Main.notifyError('An error occurred while adding the project', stderr);
+            Main.notifyError('An error occurred while getting the project tree', stderr);
         }
         if (success) {
             let data
@@ -141,12 +141,12 @@ export function checkInstallation(proc) {
         }
 
     } catch {
-        Main.notifyError('An error occurred while adding the project', stderr);
+        Main.notifyError('An error occurred while checking the wechsel version', stderr);
         return false
     };
 
     if (!good_version) {
-        Main.notifyError('An error occurred while adding the project', stderr);
+        Main.notifyError('An error occurred while checking the wechsel version', stderr);
         return false
     }
     return true
