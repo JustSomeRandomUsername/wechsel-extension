@@ -533,7 +533,6 @@ const Indicator = GObject.registerClass(
 
         change_project(name, close = true) {
             this.active_project = name;
-            // this.panelIcon.text = name;
 
             this._proc?.force_exit();
 

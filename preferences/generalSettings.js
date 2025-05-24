@@ -134,21 +134,6 @@ export const GeneralPage = GObject.registerClass(
                     const folder = `file://${prj.path}`;
                     Gio.AppInfo.launch_default_for_uri(folder, null);
                 });
-                // this._proc = Gio.Subprocess.new(
-                //     ["wechsel", "path", "$(wechsel active)"],//TODO Test
-                //     Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
-                // );
-
-                // this._proc.communicate_utf8_async(null, null, (subprocess /*@type {Gio.Subprocess}*/, result /*@type {Gio.AsyncResult}*/, _data) => {
-                //     const [_success, stdout, stderr] = this._proc.communicate_utf8_finish(result)
-                //     if (stderr !== "") {
-                //         Main.notifyError('An error occured', stderr);
-                //     }
-                //     if (stdout !== "") {
-                //         const folder = `file://${stdout.trim()}`;
-                //         Gio.AppInfo.launch_default_for_uri(folder, null);
-                //     }
-                // });
             });
             buttonGroup.add(openProjectFolder)
             this.add(buttonGroup);

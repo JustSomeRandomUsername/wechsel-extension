@@ -58,7 +58,7 @@ export const NewPage = GObject.registerClass(
             const name_input = new Gtk.Entry({
                 placeholder_text: 'Project name',
             });
-            // Update Icon Label incase the icon file is not set
+            // Update Icon Label in case the icon file is not set
             name_input.connect('changed', (entry) => {
                 if (!this.iconFile) {
                     this.iconLabel.set_markup_with_mnemonic(`<span font="42">${entry.text.substring(0, 3)}</span>`)
@@ -68,7 +68,6 @@ export const NewPage = GObject.registerClass(
             // Icon
             addPrjGroup.add(this.setupIcon(window))
 
-            // name_input.bind_property("text", icon_label, "label", GObject.BindingFlags.SYNC_CREATE | GObject.BindingFlags.DEFAULT)
             entryRow.add_suffix(name_input);
 
             // Folder Toggles
@@ -125,15 +124,6 @@ export const NewPage = GObject.registerClass(
                     '--folders=' + folders.filter((x) => x[0].active).map((x) => x[1]).join(" "),
                 ]);
 
-                // this._proc = Gio.Subprocess.new(
-                //     ["wechsel",
-                //         'new',
-                //         name,
-                //         '--parent', this.name_list.get_string(this.parentRow.get_selected()),
-                //         '--folders=' + folders.filter((x) => x[0].active).map((x) => x[1]).join(" "),
-                //     ],
-                //     Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
-                // );
                 this._proc.communicate_utf8_async(null, null, (subprocess /*@type {Gio.Subprocess}*/, result /*@type {Gio.AsyncResult}*/, _data) => {
                     const [_success, _stdout, stderr] = this._proc.communicate_utf8_finish(result)
                     // if (stderr !== "") {
