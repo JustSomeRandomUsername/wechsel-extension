@@ -20,6 +20,7 @@ SPDX-License_identifier: GPL-3.0-or-later
 
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 /**
  * @typedef {Object} Config
@@ -128,7 +129,6 @@ export function callChangeProject(project) {
  */
 export function checkInstallation(proc) {
     // Check if Wechsel is installed
-    let good_version = true
     try {
         proc = Gio.Subprocess.new(
             ["wechsel", "--version"],
@@ -136,8 +136,9 @@ export function checkInstallation(proc) {
         );
         const [_success, stdout, stderr] = proc.communicate_utf8(null, null);
 
-        if (!stdout || stdout.match(/.*\d+.2.\d+/) === null) {
-            good_version = false
+        if (!stdout || stdout.match(/.*0.2.\d+/) === null) {
+            Main.notifyError('The installed wechsel version is too old for this version of the extension, this extension requires wechsel > 0.2', stderr);
+            return false
         }
 
     } catch {

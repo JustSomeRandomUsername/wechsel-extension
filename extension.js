@@ -431,12 +431,8 @@ const Indicator = GObject.registerClass(
 
                 this.menu_open = open;
                 if (open) {
-                    if (this.installed !== true) {
+                    if (this.installed === false) {
                         this.installed = checkInstallation(this._proc)
-
-                        if (this.installed !== true) {
-                            return
-                        }
                     }
                     // refresh the popupmenu
                     this.updateUI(true);
@@ -475,7 +471,7 @@ const Indicator = GObject.registerClass(
         }
 
         updateUI(open = false) {
-            if (this.installed !== true) {
+            if (this.installed === false) {
                 return
             }
 
@@ -560,7 +556,6 @@ function _switchInputSource(display, window, event, binding) {
     if (this._indicator.installed !== true) {
         return
     }
-    console.log("---- Test-------");
     getProjectTree.bind(this)(this._proc, (projects, active) => {
         let icons = getIcons(projects)
 
@@ -629,7 +624,6 @@ export default class WechselExtension extends Extension {
         if (this.settings.get_boolean('activate-search-provider')) {
             this._provider = new SearchProvider(this);
             registerProvider(this._provider)
-            // Main.overview.searchController.addProvider(this._provider);
         }
 
         this._indicator.searchProvider = this._provider
@@ -657,7 +651,6 @@ export default class WechselExtension extends Extension {
 
         if (this._provider !== null) {
             unregisterProvider(this._provider)
-            // Main.overview.searchController.removeProvider(this._provider);
             this._provider.destroy();
             this._provider = null;
         }

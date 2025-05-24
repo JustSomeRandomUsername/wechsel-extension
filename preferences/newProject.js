@@ -136,9 +136,9 @@ export const NewPage = GObject.registerClass(
                 // );
                 this._proc.communicate_utf8_async(null, null, (subprocess /*@type {Gio.Subprocess}*/, result /*@type {Gio.AsyncResult}*/, _data) => {
                     const [_success, _stdout, stderr] = this._proc.communicate_utf8_finish(result)
-                    if (stderr !== "") {
-                        Main.notifyError('An error occurred while adding the project', stderr);
-                    }
+                    // if (stderr !== "") {
+                    //     Main.notifyError('An error occurred while adding the project', stderr);
+                    // }
 
                     if (this.iconFile) {
                         this._proc = Gio.Subprocess.new(
@@ -148,9 +148,9 @@ export const NewPage = GObject.registerClass(
 
                         this._proc.communicate_utf8_async(null, null, (subprocess /*@type {Gio.Subprocess}*/, result /*@type {Gio.AsyncResult}*/, _data) => {
                             const [_success, stdout, stderr] = this._proc.communicate_utf8_finish(result)
-                            if (stderr !== "") {
-                                Main.notifyError('An error occurred while adding the project', stderr);
-                            }
+                            // if (stderr !== "") {
+                            //     Main.notifyError('An error occurred while adding the project', stderr);
+                            // }
                             if (stdout !== "") {
                                 let suffix = this.iconFile.get_basename().split('.')
                                 if (suffix.length > 1) {
