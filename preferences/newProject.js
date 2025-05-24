@@ -104,7 +104,7 @@ export const NewPage = GObject.registerClass(
             createButton.connect('clicked', () => {
                 let name = name_input.text;
 
-                if (name == "") {
+                if (name === "") {
                     return
                 }
 
@@ -125,7 +125,7 @@ export const NewPage = GObject.registerClass(
                 ]);
 
                 this._proc.communicate_utf8_async(null, null, (subprocess /*@type {Gio.Subprocess}*/, result /*@type {Gio.AsyncResult}*/, _data) => {
-                    const [_success, _stdout, stderr] = this._proc.communicate_utf8_finish(result)
+                    const [_success, _stdout, _stderr] = this._proc.communicate_utf8_finish(result)
                     // if (stderr !== "") {
                     //     Main.notifyError('An error occurred while adding the project', stderr);
                     // }
@@ -137,7 +137,7 @@ export const NewPage = GObject.registerClass(
                         );
 
                         this._proc.communicate_utf8_async(null, null, (subprocess /*@type {Gio.Subprocess}*/, result /*@type {Gio.AsyncResult}*/, _data) => {
-                            const [_success, stdout, stderr] = this._proc.communicate_utf8_finish(result)
+                            const [_success, stdout, _stderr] = this._proc.communicate_utf8_finish(result)
                             // if (stderr !== "") {
                             //     Main.notifyError('An error occurred while adding the project', stderr);
                             // }

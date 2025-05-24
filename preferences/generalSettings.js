@@ -117,7 +117,7 @@ export const GeneralPage = GObject.registerClass(
 
                 getProjectTree(this._proc, (projects, active) => {
                     let recurse = (project) => {
-                        if (project.name == active) {
+                        if (project.name === active) {
                             return project
                         }
                         for (const child of project.children) {

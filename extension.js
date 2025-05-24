@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 SPDX-License_identifier: GPL-3.0-or-later
 */
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import St from 'gi://St';
 import Atk from 'gi://Atk';
@@ -397,7 +398,7 @@ const Indicator = GObject.registerClass(
              * Is the wechsel tool installed
              * @type {boolean}
              */
-            this.installed = checkInstallation(this._proc)
+            this.installed = checkInstallation(this._proc, Main.notifyError)
 
             /**
              * tracks the state of the menu
@@ -432,7 +433,7 @@ const Indicator = GObject.registerClass(
                 this.menu_open = open;
                 if (open) {
                     if (this.installed === false) {
-                        this.installed = checkInstallation(this._proc)
+                        this.installed = checkInstallation(this._proc, Main.notifyError)
                     }
                     // refresh the popupmenu
                     this.updateUI(true);
@@ -527,7 +528,7 @@ const Indicator = GObject.registerClass(
                         buildProjectTree(projects, this.item_projects_section);
                     }
                     this.searchProvider?.update_project_list(projects)
-                });
+                }, Main.notifyError);
             }
         }
 
@@ -558,13 +559,13 @@ function _switchInputSource(display, window, event, binding) {
     getProjectTree.bind(this)(this._proc, (projects, active) => {
         let icons = getIcons(projects)
 
-        let _switcherPopup = new ProjectSwitcherPopup(this._keybindingAction, this._keybindingActionBackwards, this._indicator, binding, projects, active, icons);
+        let _switcherPopup = new ProjectSwitcherPopup(this._keybindingAction, this._keybindingActionBackwards, this._indicator, binding, projects, icons, active);
         _switcherPopup.connect('destroy', () => {
             _switcherPopup = null;
         });
         if (!_switcherPopup.show(binding.get_name().endsWith("backward"), binding.get_name(), binding.get_mask()))
             _switcherPopup.fadeAndDestroy();
-    })
+    }, Main.notifyError)
 
 }
 

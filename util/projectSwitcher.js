@@ -98,13 +98,13 @@ const ProjectSwitcher = GObject.registerClass(
             let arrowWidth = arrowHeight * 2;
 
             // Get the current scroll position
-            // let [value] = this._scrollView.hscroll.adjustment.get_values();//TODO deprecated
+            let [value] = this._scrollView.hadjustment.get_values();
 
             // Now allocate each arrow underneath its item
             let childBox = new Clutter.ActorBox();
             for (let i = 0; i < this._items.length; i++) {
                 let itemBox = this._items[i].allocation;
-                childBox.x1 = /*-value + */contentBox.x1 + Math.floor(itemBox.x1 + (itemBox.x2 - itemBox.x1 - arrowWidth) / 2);
+                childBox.x1 = -value + contentBox.x1 + Math.floor(itemBox.x1 + (itemBox.x2 - itemBox.x1 - arrowWidth) / 2);
                 childBox.x2 = childBox.x1 + arrowWidth;
                 childBox.y1 = contentBox.y1 + itemBox.y2 + arrowHeight;
                 childBox.y2 = childBox.y1 + arrowHeight;
@@ -124,13 +124,13 @@ const ProjectSwitcher = GObject.registerClass(
 
 const ProjectSwitcherPopup = GObject.registerClass(
     class InputSourcePopup extends SwitcherPopup.SwitcherPopup {
-        constructor(action, actionBackward, indicator, binding, root_prj, active = "", iconPaths, selections = []) {
+        constructor(action, actionBackward, indicator, binding, root_prj, iconPaths, active = "", selections = []) {
 
-            const a = ProjectSwitcherPopup.searchForActivePrj(root_prj, active, selections);
-            if (a === null) {
+            const temp = ProjectSwitcherPopup.searchForActivePrj(root_prj, active, selections);
+            if (temp === null) {
                 throw new Error("Selected a project that could not be found in the project tree, this should not happen");
             }
-            const [parent, newSelections] = a;
+            const [parent, newSelections] = temp;
 
             super([parent, ...parent.children]);
 
@@ -268,7 +268,7 @@ const ProjectSwitcherPopup = GObject.registerClass(
         spawn_child_popup() {
             this.destroy();
 
-            this._switcherPopup = new ProjectSwitcherPopup(this._action, this._actionBackward, this._indicator, this.binding, this.root_prj, "", this.iconPaths, this._selections);
+            this._switcherPopup = new ProjectSwitcherPopup(this._action, this._actionBackward, this._indicator, this.binding, this.root_prj, this.iconPaths, "", this._selections);
             this.showChildPopup();
         }
 

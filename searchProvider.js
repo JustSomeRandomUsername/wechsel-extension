@@ -19,6 +19,7 @@ SPDX-License_identifier: GPL-3.0-or-later
 */
 import St from 'gi://St';
 import Gio from 'gi://Gio';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import { callChangeProject, getIcons, getProjectTree } from './util/utils.js';
 
 export class SearchProvider {
@@ -51,9 +52,9 @@ export class SearchProvider {
         this.isRemoteProvider = false;
 
         this.projects = []
-        getProjectTree.bind(this)(this._proc, (projects, active) => {
+        getProjectTree.bind(this)(this._proc, (projects, _active) => {
             this.update_project_list(projects)
-        });
+        }, Main.notifyError);
 
     }
 
