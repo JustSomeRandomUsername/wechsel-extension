@@ -19,14 +19,139 @@ SPDX-License_identifier: GPL-3.0-or-later
 */
 
 import Gio from 'gi://Gio';
-import GLib from 'gi://GLib';
 
-let getConfig = function getConfig() {
-    const config_file = Gio.File.new_for_path(GLib.build_filenamev([GLib.get_home_dir(), '.config/wechsel', 'wechsel_projects.json']));
-    const [, contents, _etag] = config_file.load_contents(null);
-    const decoder = new TextDecoder('utf-8');
-    const contentsString = decoder.decode(contents);
-    return JSON.parse(contentsString);
+
+/**
+ * @typedef {Object} Config
+ * @property {string} active
+ * @property {string} base_folder
+*/
+
+/**
+ * @typedef {Object} ProjectTree
+ * @property {string} name
+ * @property {ProjectTree[]} children
+ * @property {string} path
+*/
+
+/**
+ * 
+ * @param {*} proc 
+ * @param {function(ProjectTree, string): void} lambda 
+ * @param {function(string, string): void} onError 
+ */
+export function getProjectTree(proc, lambda, onError = (_1, _2) => { }) {
+    try {
+        proc = Gio.Subprocess.new(
+            ["wechsel",
+                'tree',
+            ],
+            Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
+        );
+    } catch {
+        return
+    }
+    proc.communicate_utf8_async(null, null, (subprocess /*@type {Gio.Subprocess}*/, result /*@type {Gio.AsyncResult}*/, _data) => {
+        const [success, stdout, stderr] = proc.communicate_utf8_finish(result)
+        if (stderr !== "" && onError) {
+            onError('An error occurred while getting the project tree', stderr)
+        }
+        if (success) {
+            let data
+            try {
+                data = JSON.parse(stdout)
+            } catch { return }
+            lambda(data.tree, data.active)
+        }
+    });
 }
 
-export { getConfig }
+/**
+ * @param {string} basePath - path to the base project folder
+ * @param {string[]} extensions - extension to search for
+ * @return {string | undefined}
+ */
+function createIconWithFallback(basePath, file_stem, extensions = ['txt', 'svg', 'png', 'jpg', 'jpeg', 'gif']) {
+    for (let ext of extensions) {
+        for (let i = 0; i < 2; i++) {
+            let filePath = `${basePath}/${i === 1 ? "." : ""}${file_stem}.${ext}`;
+            let file = Gio.File.new_for_path(filePath);
+
+            if (file.query_exists(null)) {
+                if (ext === 'txt') {
+                    const [, contents, _etag] = file.load_contents(null);
+                    const decoder = new TextDecoder('utf-8');
+                    return decoder.decode(contents).trim();
+                }
+                return filePath
+            }
+        }
+    }
+    return undefined
+}
+
+/**
+ * 
+ * @param {ProjectTree} project_tree 
+ * @param {Config} config 
+ * @returns {Map<string, string>}
+ */
+export function getIcons(project_tree) {
+    /**@type {Map<string, string>} */
+    let result = new Map()
+
+    /** @type {function(ProjectTree, string)} */
+    let recurse = (project) => {
+        result.set(project.name, createIconWithFallback(project.path, "icon"))
+        for (const child of project.children) {
+            recurse(child)
+        }
+    }
+
+    recurse(project_tree)
+    return result
+}
+/**
+ * 
+ * @param {string} project 
+ */
+export function callChangeProject(project) {
+    return Gio.Subprocess.new(
+        ["wechsel", "change", project],
+        Gio.SubprocessFlags.NONE
+    );
+}
+
+/**
+ * 
+ * @param {*} proc 
+ * @param {function(string, string): void} onError 
+ * @returns {boolean}
+
+ */
+export function checkInstallation(proc, onError) {
+    // Check if Wechsel is installed
+    let good_version = true;
+    let stderr;
+    try {
+        proc = Gio.Subprocess.new(
+            ["wechsel", "--version"],
+            Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE,
+        );
+        const [_success, stdout, new_stderr] = proc.communicate_utf8(null, null);
+        stderr = new_stderr
+        if (!stdout || stdout.match(/.*0.2.\d+/) === null) {
+            onError('The installed wechsel version is too old for this version of the extension, this extension requires wechsel > 0.2', stderr);
+            good_version = false
+        }
+
+    } catch {
+        good_version = false
+    };
+
+    if (!good_version) {
+        onError('An error occurred while checking the wechsel version', stderr);
+        return false
+    }
+    return true
+}

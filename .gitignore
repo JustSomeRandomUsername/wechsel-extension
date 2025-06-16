@@ -1,2 +1,5 @@
 wechsel_extension_*
 *.webm
+.vscode
+node_modules
+eslint.config.js

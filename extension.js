@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 SPDX-License_identifier: GPL-3.0-or-later
 */
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import St from 'gi://St';
 import Atk from 'gi://Atk';
@@ -30,10 +31,13 @@ import { wm, panel } from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
-import { getConfig } from './util/utils.js';
+import { callChangeProject, checkInstallation, getIcons, getProjectTree } from './util/utils.js';
+
+import { SearchProvider } from './searchProvider.js';
 import { ProjectSwitcherPopup } from './util/projectSwitcher.js'
 
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
+import { registerProvider, unregisterProvider } from './util/searchProviderRegistration.js';
 
 const interfaceXml = `
     <node>
@@ -56,40 +60,40 @@ const FoldoutLeaf = GObject.registerClass(
         },
     },
     class FoldoutLeaf extends PopupMenu.PopupMenuItem {
-    constructor(
-        name,
-        indicator
-    ) {
-        super(name);
+        constructor(
+            name,
+            indicator
+        ) {
+            super(name);
 
-        this.connect('notify::active-project', (object, _pspec) => {
-            if (object.active_project === name) {
-                this.label.add_style_class_name('active-project');
-            } else {
-                this.label.remove_style_class_name('active-project');
-            }
-        });
+            this.connect('notify::active-project', (object, _pspec) => {
+                if (object.active_project === name) {
+                    this.label.add_style_class_name('active-project');
+                } else {
+                    this.label.remove_style_class_name('active-project');
+                }
+            });
 
-        this.label.add_style_class_name('leaf-label');
-        this.add_style_class_name('leaf');
+            this.label.add_style_class_name('leaf-label');
+            this.add_style_class_name('leaf');
 
-        this.connect('activate', () => {
-            indicator.change_project(name);
-        });
-    }
-});
+            this.connect('activate', () => {
+                indicator.change_project(name);
+            });
+        }
+    });
 
 const FoldoutChildren = GObject.registerClass(
     class FoldoutChildren extends St.BoxLayout {
-    constructor() {
-        super({
-            vertical: true,
-            x_expand: true,
-            y_expand: true,
-        });
-        this.add_style_class_name('foldout-children');
-    }
-});
+        constructor() {
+            super({
+                orientation: Clutter.Orientation.VERTICAL,
+                x_expand: true,
+                y_expand: true,
+            });
+            this.add_style_class_name('foldout-children');
+        }
+    });
 
 const Foldout = GObject.registerClass(
     {
@@ -104,258 +108,258 @@ const Foldout = GObject.registerClass(
         },
     },
     class Foldout extends PopupMenu.PopupBaseMenuItem {
-    constructor(
-        name,
-        is_root = false,
-        indicator = undefined,
-        depth = 0
-    ) {
-        super({
-            activate: true,
-            hover: true,
-            can_focus: true,
-            style_class: 'popup-menu-item',
-        });
+        constructor(
+            name,
+            is_root = false,
+            indicator = undefined,
+            depth = 0
+        ) {
+            super({
+                activate: true,
+                hover: true,
+                can_focus: true,
+                style_class: 'popup-menu-item',
+            });
 
-        this.ignore_next_hover = false;
-        this.is_root = is_root;
-        this.indicator = indicator;
-        this.project_name = name;
-        this.depth = depth;
-        this.unfolded = false;
-        this.children = [];
+            this.ignore_next_hover = false;
+            this.is_root = is_root;
+            this.indicator = indicator;
+            this.project_name = name;
+            this.depth = depth;
+            this.unfolded = false;
+            this.children = [];
 
-        this.box = new St.BoxLayout({
-            vertical: true,
-            x_expand: true,
-            y_expand: true
-        });
+            this.box = new St.BoxLayout({
+                orientation: Clutter.Orientation.VERTICAL,
+                x_expand: true,
+                y_expand: true
+            });
 
-        this.header_box = new St.BoxLayout({
-            vertical: false,
-            x_expand: true,
-            y_expand: true,
-        });
+            this.header_box = new St.BoxLayout({
+                orientation: Clutter.Orientation.HORIZONTAL,
+                x_expand: true,
+                y_expand: true,
+            });
 
 
-        this._icon = new St.Button({
-            style_class: 'popup-menu-icon',
-            can_focus: false,
-            child: new St.Icon({
-                icon_name: 'pan-end-symbolic',
-                icon_size: 16,
-            }),
-        });
-        this._icon.connect('clicked', () => {
-            if (this.unfolded) {
-                this.close();            
-            } else {
-                this.open();
-            }
-        });
-        this._label = new St.Label({
-            text: name,
-            y_align: Clutter.ActorAlign.CENTER,
-        })
-        this._label.add_style_class_name('submenu-label');
-
-        this.connect('notify::active-project', (object, _pspec) => {
-            if (object.active_project === name) {
-                this._label.add_style_class_name('active-project');
-                if (!this.unfolded) {
+            this._icon = new St.Button({
+                style_class: 'popup-menu-icon',
+                can_focus: false,
+                child: new St.Icon({
+                    icon_name: 'pan-end-symbolic',
+                    icon_size: 16,
+                }),
+            });
+            this._icon.connect('clicked', () => {
+                if (this.unfolded) {
+                    this.close();
+                } else {
                     this.open();
                 }
-            } else {
-                this._label.remove_style_class_name('active-project');
-            }
-        });
+            });
+            this._label = new St.Label({
+                text: name,
+                y_align: Clutter.ActorAlign.CENTER,
+            })
+            this._label.add_style_class_name('submenu-label');
 
-        
-        this._ornament = new St.Icon({
-            icon_name: 'ornament-check-symbolic',
-            icon_size: 16,
-            style_class: 'popup-menu-icon',
-        });
-
-
-        this.header_box.add_child(this._icon);
-        this.header_box.add_child(this._label);
-        this.header_box.add_child(this._ornament);
-
-        this.hideOrnament();
-
-        this.child_container = new FoldoutChildren(this);
-
-        this.box.add_child(this.header_box);
-        this.box.add_child(this.child_container);
-
-        this.add_accessible_state(Atk.StateType.EXPANDABLE);
-        this.add_child(this.box);
-
-        this.set_track_hover(false);
-
-        if (this.is_root) {
-            this.connect('enter-event', () => {
-                if (this.ignore_next_hover) {
-                    this.ignore_next_hover = false;
+            this.connect('notify::active-project', (object, _pspec) => {
+                if (object.active_project === name) {
+                    this._label.add_style_class_name('active-project');
+                    if (!this.unfolded) {
+                        this.open();
+                    }
                 } else {
-                    this.indicator.emit('hover_changed');
-                    this.set_hover(true);
+                    this._label.remove_style_class_name('active-project');
                 }
             });
-        }
 
-        // Close this submenu when another submenu is opened
-        this.close_submenus_connection = this.indicator.connect('close_submenus', (a, close_depth, prj_name) => {
-            if (close_depth === this.depth && this.unfolded === true && prj_name !== this.project_name) {
-                this.close();
+
+            this._ornament = new St.Icon({
+                icon_name: 'ornament-check-symbolic',
+                icon_size: 16,
+                style_class: 'popup-menu-icon',
+            });
+
+
+            this.header_box.add_child(this._icon);
+            this.header_box.add_child(this._label);
+            this.header_box.add_child(this._ornament);
+
+            this.hideOrnament();
+
+            this.child_container = new FoldoutChildren(this);
+
+            this.box.add_child(this.header_box);
+            this.box.add_child(this.child_container);
+
+            this.add_accessible_state(Atk.StateType.EXPANDABLE);
+            this.add_child(this.box);
+
+            this.set_track_hover(false);
+
+            if (this.is_root) {
+                this.connect('enter-event', () => {
+                    if (this.ignore_next_hover) {
+                        this.ignore_next_hover = false;
+                    } else {
+                        this.indicator.emit('hover_changed');
+                        this.set_hover(true);
+                    }
+                });
             }
-        });
 
-        // Set hover to false when another submenu is hovered
-        this.hover_changed_connection = this.indicator.connect('hover_changed', () => {
-            if (this.hover) {
-                this.set_hover(false);
-            }
-        });
+            // Close this submenu when another submenu is opened
+            this.close_submenus_connection = this.indicator.connect('close_submenus', (a, close_depth, prj_name) => {
+                if (close_depth === this.depth && this.unfolded === true && prj_name !== this.project_name) {
+                    this.close();
+                }
+            });
 
-        this.close()
-    }
-
-    activate(_event) {
-        if (this.unfolded) {
-            if (this.indicator) {
-                this.indicator.change_project(this.project_name);
-            } else {
-                //This should not happen
-                this.close();
-            }
-        } else {
-            this.indicator.change_project(this.project_name, false);
-            this.open();
-        }
-    }
-
-    addMenuItem(item) {
-        this.child_container.add_child(item);
-        this.children.push(item);
-
-        // disable hover when the child container is hovered and this item is hovered
-        if (item.connect) {
-            // disable hover when the child container is hovered and this item is hovered
-            item.connect('enter-event', () => {
+            // Set hover to false when another submenu is hovered
+            this.hover_changed_connection = this.indicator.connect('hover_changed', () => {
                 if (this.hover) {
                     this.set_hover(false);
-                    this.ignore_next_hover = true;
                 }
-                if (item.ignore_next_hover !== undefined && item.ignore_next_hover) {
-                    item.ignore_next_hover = false;
-                    
+            });
+
+            this.close()
+        }
+
+        activate(_event) {
+            if (this.unfolded) {
+                if (this.indicator) {
+                    this.indicator.change_project(this.project_name);
                 } else {
-                    this.indicator.emit('hover_changed');
-                    item.set_hover(true);
-                }
-            });
-
-            // close menu when left arrow key is pressed on child
-            item.connect('key-press-event', (_actor, event) => {
-                let symbol = event.get_key_symbol();
-                if (symbol === Clutter.KEY_Left && !item.unfolded && !this.is_root) {
+                    //This should not happen
                     this.close();
-                    // focus this
-                    this.grab_key_focus();
-                    return Clutter.EVENT_STOP;
                 }
-                // handle up down focus
-                if (symbol === Clutter.KEY_Up) {
-                    let prev = item.get_previous_sibling();
-                    if (prev) {
-                        prev.grab_key_focus();
+            } else {
+                this.indicator.change_project(this.project_name, false);
+                this.open();
+            }
+        }
+
+        addMenuItem(item) {
+            this.child_container.add_child(item);
+            this.children.push(item);
+
+            // disable hover when the child container is hovered and this item is hovered
+            if (item.connect) {
+                // disable hover when the child container is hovered and this item is hovered
+                item.connect('enter-event', () => {
+                    if (this.hover) {
+                        this.set_hover(false);
+                        this.ignore_next_hover = true;
+                    }
+                    if (item.ignore_next_hover !== undefined && item.ignore_next_hover) {
+                        item.ignore_next_hover = false;
+
                     } else {
+                        this.indicator.emit('hover_changed');
+                        item.set_hover(true);
+                    }
+                });
+
+                // close menu when left arrow key is pressed on child
+                item.connect('key-press-event', (_actor, event) => {
+                    let symbol = event.get_key_symbol();
+                    if (symbol === Clutter.KEY_Left && !item.unfolded && !this.is_root) {
+                        this.close();
+                        // focus this
                         this.grab_key_focus();
+                        return Clutter.EVENT_STOP;
                     }
-                    return Clutter.EVENT_STOP;
-                }
-                if (symbol === Clutter.KEY_Down) {
-                    let next = item.get_next_sibling();
-                    if (next) {
-                        next.grab_key_focus();
-                    } else {
-                        this.get_next_sibling().grab_key_focus();
+                    // handle up down focus
+                    if (symbol === Clutter.KEY_Up) {
+                        let prev = item.get_previous_sibling();
+                        if (prev) {
+                            prev.grab_key_focus();
+                        } else {
+                            this.grab_key_focus();
+                        }
+                        return Clutter.EVENT_STOP;
                     }
-                    return Clutter.EVENT_STOP;
-                }
-                return Clutter.EVENT_PROPAGATE;
-            });
-        }
-    }
-
-    open(emit_close_signal = true) {
-        if (emit_close_signal) {
-            this.indicator.emit('close_submenus', this.depth, this.project_name);
-        }
-        this.unfolded = true;
-        this._icon.icon_name = 'pan-down-symbolic';
-        this.box.add_style_class_name('open');
-        this.add_style_class_name('open');
-        this.child_container.show();
-    }
-
-    close() {
-        this.unfolded = false;
-        this._icon.icon_name = 'pan-end-symbolic';
-        this.box.remove_style_class_name('open');
-        this.remove_style_class_name('open');
-        
-        this.child_container.hide();
-    }
-
-    vfunc_key_press_event(event) {
-        let symbol = event.get_key_symbol();
-
-        if (symbol === Clutter.KEY_Right && (!this.unfolded || this.has_key_focus())) {
-            this.open();
-            // focus the first child in the child_container
-            this.child_container.get_first_child().grab_key_focus();
-            return Clutter.EVENT_STOP;
-        } else if (symbol === Clutter.KEY_Left && this.unfolded && !this.is_root) {
-            this.close();
-            // focus this
-            this.grab_key_focus();
-            return Clutter.EVENT_STOP;
-        } else if (symbol === Clutter.KEY_Down && this.has_key_focus()) {
-            this.child_container.get_first_child().grab_key_focus();
-            return Clutter.EVENT_STOP;
+                    if (symbol === Clutter.KEY_Down) {
+                        let next = item.get_next_sibling();
+                        if (next) {
+                            next.grab_key_focus();
+                        } else {
+                            this.get_next_sibling().grab_key_focus();
+                        }
+                        return Clutter.EVENT_STOP;
+                    }
+                    return Clutter.EVENT_PROPAGATE;
+                });
+            }
         }
 
-        return super.vfunc_key_press_event(event);
-    }
-
-    showOrnament() {
-        this._ornament.show();
-    }
-
-    hideOrnament() {
-        this._ornament.hide();
-    }
-
-    destroy() {
-        for (let child of this.children) {
-            child.destroy();
+        open(emit_close_signal = true) {
+            if (emit_close_signal) {
+                this.indicator.emit('close_submenus', this.depth, this.project_name);
+            }
+            this.unfolded = true;
+            this._icon.icon_name = 'pan-down-symbolic';
+            this.box.add_style_class_name('open');
+            this.add_style_class_name('open');
+            this.child_container.show();
         }
-        if (this.hover_changed_connection) {
-            this.indicator.disconnect(this.hover_changed_connection);
-            this.hover_changed_connection = null;
+
+        close() {
+            this.unfolded = false;
+            this._icon.icon_name = 'pan-end-symbolic';
+            this.box.remove_style_class_name('open');
+            this.remove_style_class_name('open');
+
+            this.child_container.hide();
         }
-        if (this.close_submenus_connection) {
-            this.indicator.disconnect(this.close_submenus_connection);
-            this.close_submenus_connection = null;
+
+        vfunc_key_press_event(event) {
+            let symbol = event.get_key_symbol();
+
+            if (symbol === Clutter.KEY_Right && (!this.unfolded || this.has_key_focus())) {
+                this.open();
+                // focus the first child in the child_container
+                this.child_container.get_first_child().grab_key_focus();
+                return Clutter.EVENT_STOP;
+            } else if (symbol === Clutter.KEY_Left && this.unfolded && !this.is_root) {
+                this.close();
+                // focus this
+                this.grab_key_focus();
+                return Clutter.EVENT_STOP;
+            } else if (symbol === Clutter.KEY_Down && this.has_key_focus()) {
+                this.child_container.get_first_child().grab_key_focus();
+                return Clutter.EVENT_STOP;
+            }
+
+            return super.vfunc_key_press_event(event);
         }
-        this.box?.destroy();
-        this.box = null;
-        super.destroy();
-    }
-});
+
+        showOrnament() {
+            this._ornament.show();
+        }
+
+        hideOrnament() {
+            this._ornament.hide();
+        }
+
+        destroy() {
+            for (let child of this.children) {
+                child.destroy();
+            }
+            if (this.hover_changed_connection) {
+                this.indicator.disconnect(this.hover_changed_connection);
+                this.hover_changed_connection = null;
+            }
+            if (this.close_submenus_connection) {
+                this.indicator.disconnect(this.close_submenus_connection);
+                this.close_submenus_connection = null;
+            }
+            this.box?.destroy();
+            this.box = null;
+            super.destroy();
+        }
+    });
 
 const Indicator = GObject.registerClass(
     {
@@ -377,183 +381,191 @@ const Indicator = GObject.registerClass(
     },
     class Indicator extends PanelMenu.Button {
 
-    _init(extension) {
-        super._init(0.0, 'Project Indicator');
+        _init(extension) {
+            super._init(0.0, 'Project Indicator');
 
-        /**
-         * The PopupMenu reference of the indicator
-         * @type {PopupMenu.PopupMenu} */
-        this.menu;
+            /**
+             * The PopupMenu reference of the indicator
+             * @type {import('resource:///org/gnome/shell/ui/popupMenu.js').PopupMenu} */
+            this.menu;
 
-        /** 
-         * reference to the extension object
-         * @type {ProjectChangerExtension} */
-        this.extension = extension;
+            /** 
+             * reference to the extension object
+             * @type {WechselExtension} */
+            this.extension = extension;
 
-        /**
-         * @typedef {{ children: Project[], name: string}} Project
-         */
-        /**
-         * reference to the current config object
-         * @type {{active: string, all_prjs: Project}} */
-        this.config = {};
-        
+            /**
+             * Is the wechsel tool installed
+             * @type {boolean}
+             */
+            this.installed = checkInstallation(this._proc, Main.notifyError)
 
-        /**
-         * tracks the state of the menu
-         * @type {boolean} */
-        this.menu_open = false;
+            /**
+             * tracks the state of the menu
+             * @type {boolean} */
+            this.menu_open = false;
 
-        // Get the current active project
-        this.config = getConfig();
-        
-        /**
-         * name of the active project
-         * @type {string} */
-        let active = this.config.active;
-        
-        /**
-         * Text label inside the button indicator
-         * @type {St.Label}
-         */
-        this.panelIcon = new St.Label({
-            text: active,
-            y_align: Clutter.ActorAlign.CENTER,
-        })
-        this.add_child(this.panelIcon);
+            /**
+             * name of the active project
+             * @type {string} */
+            this.active_project = ""
+            if (this.installed !== true) {
+                this.active_project = '--Error--'
+            }
+
+            /** 
+             * Text label inside the button indicator
+             * @type {St.Label}
+             */
+            this.panelIcon = new St.Label({
+                text: "",
+                y_align: Clutter.ActorAlign.CENTER,
+            })
+            this.add_child(this.panelIcon);
 
 
-        this.menu.connect('open-state-changed', (
-            _menu,
+            this.menu.connect('open-state-changed', (
+                _menu,
             /** updated open state @type {boolean} */ open
-        ) => {
-            // PanelMenu.Button automatically opens and closes its PopupMenu
-            
-            this.menu_open = open;
-            if (open) {
-                // refresh the popupmenu
-                this.updateUI(true);
-            }
-        });
+            ) => {
+                // PanelMenu.Button automatically opens and closes its PopupMenu
 
-        /**
-         * section for all projects. this will be rerendered dynamically
-         * @type {PopupMenu.PopupMenuSection} */
-        this.item_projects_section = new PopupMenu.PopupMenuSection();
-        this.menu.addMenuItem(this.item_projects_section);
-
-        // seperator between the projects and the settings
-        this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-
-        /**
-         * reference to the Settings item in the menu
-         * @type {PopupMenu.PopupMenuItem} */
-        this.item_settings = new PopupMenu.PopupMenuItem('Settings');
-        // open preferences page when settings is activated
-        this.item_settings.connect('activate', () => {
-            this.extension.openPreferences();
-        });
-        this.item_settings.connect('enter-event', () => {
-            this.emit('hover_changed');
-        });
-        this.menu.addMenuItem(this.item_settings);
-
-        // binds the active project name to the indicator button text
-        this.bind_property('active-project', this.panelIcon, 'text',
-            GObject.BindingFlags.SYNC_CREATE | GObject.BindingFlags.DEFAULT);
-
-        // initial update
-        this.updateUI();
-    }
-
-    updateUI(open = false) {
-        // loads current config
-        this.config = getConfig();
-
-        /**
-         * Inserts all children of a project into the menu
-         * 
-         * @param {Project} project project object from the config
-         * @param {PopupMenu.PopupMenuSection | PopupMenu.PopupSubMenuMenuItem} menu parent object to insert the children into
-         * 
-         * @returns {boolean}
-         */
-        const buildProjectTree = (
-            project,
-            menu,
-            depth = 0,
-        ) => {
-            let is_active = this.active_project === project.name;
-            if (project.children.length === 0) {
-                // the project is a leaf and can be added as a button
-                let item = new FoldoutLeaf(project.name, this);
-
-                this.bind_property('active-project', item, 'active-project',
-                    GObject.BindingFlags.SYNC_CREATE | GObject.BindingFlags.DEFAULT);
-
-                menu.addMenuItem(item);
-            } else {
-                // the project has children and needs to be added as a submenu
-                const submenu = new Foldout(project.name, depth === 0, this, depth);
-                
-                this.bind_property('active-project', submenu, 'active-project',
-                    GObject.BindingFlags.SYNC_CREATE | GObject.BindingFlags.DEFAULT);
-    
-
-                let self_active = this.active_project === project.name;
-                for (const child of project.children) {
-                    is_active |= buildProjectTree(child, submenu, depth + 1);
+                this.menu_open = open;
+                if (open) {
+                    if (this.installed === false) {
+                        this.installed = checkInstallation(this._proc, Main.notifyError)
+                    }
+                    // refresh the popupmenu
+                    this.updateUI(true);
                 }
-                // if this is active it should not be open, only if it isnt and a child is active
-                if (is_active || (self_active && depth === 0)) submenu.open(false);
+            });
 
-                menu.addMenuItem(submenu);
-            }
-            return is_active;
+            /**
+             * section for all projects. this will be rerendered dynamically
+             * @type {PopupMenu.PopupMenuSection} */
+            this.item_projects_section = new PopupMenu.PopupMenuSection();
+            this.menu.addMenuItem(this.item_projects_section);
+
+            // separator between the projects and the settings
+            this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+
+            /**
+             * reference to the Settings item in the menu
+             * @type {PopupMenu.PopupMenuItem} */
+            this.item_settings = new PopupMenu.PopupMenuItem('Settings');
+            // open preferences page when settings is activated
+            this.item_settings.connect('activate', () => {
+                this.extension.openPreferences();
+            });
+            this.item_settings.connect('enter-event', () => {
+                this.emit('hover_changed');
+            });
+            this.menu.addMenuItem(this.item_settings);
+
+            // binds the active project name to the indicator button text
+            this.bind_property('active-project', this.panelIcon, 'text',
+                GObject.BindingFlags.SYNC_CREATE | GObject.BindingFlags.DEFAULT);
+
+
+            // initial update
+            this.updateUI();
         }
 
-        if (open || !this.menu_open) {
-            // clear the section
+        updateUI(open = false) {
+            if (this.installed === false) {
+                return
+            }
+
+            /**
+             * Inserts all children of a project into the menu
+             * 
+             * @param {import('./util/utils.js').ProjectTree} project
+             * @param {PopupMenu.PopupMenuSection | PopupMenu.PopupSubMenuMenuItem} menu parent object to insert the children into
+             * 
+             * @returns {boolean}
+             */
+            const buildProjectTree = (
+                project,
+                menu,
+                depth = 0,
+            ) => {
+                let is_active = this.active_project === project.name;
+                if (project.children.length === 0) {
+                    // the project is a leaf and can be added as a button
+                    let item = new FoldoutLeaf(project.name, this);
+
+                    this.bind_property('active-project', item, 'active-project',
+                        GObject.BindingFlags.SYNC_CREATE | GObject.BindingFlags.DEFAULT);
+
+                    menu.addMenuItem(item);
+                } else {
+                    // the project has children and needs to be added as a submenu
+                    const submenu = new Foldout(project.name, depth === 0, this, depth);
+
+                    this.bind_property('active-project', submenu, 'active-project',
+                        GObject.BindingFlags.SYNC_CREATE | GObject.BindingFlags.DEFAULT);
+
+
+                    let self_active = this.active_project === project.name;
+                    for (const child of project.children) {
+                        is_active |= buildProjectTree(child, submenu, depth + 1);
+                    }
+                    // if this is active it should not be open, only if it isn't and a child is active
+                    if (is_active || (self_active && depth === 0)) submenu.open(false);
+
+                    menu.addMenuItem(submenu);
+                }
+                return is_active;
+            }
+
+            if (open || !this.menu_open) {
+                // clear the section
+                this.item_projects_section.removeAll();
+
+                getProjectTree.bind(this)(this._proc, (projects, active) => {
+                    this.active_project = active;
+                    if (this.menu_open) {
+                        buildProjectTree(projects, this.item_projects_section);
+                    }
+                    this.searchProvider?.update_project_list(projects)
+                }, Main.notifyError);
+            }
+        }
+
+        change_project(name, close = true) {
+            this.active_project = name;
+
+            this._proc?.force_exit();
+
+            this._proc = callChangeProject(name);
+            if (close) {
+                // Close the Menu
+                this.menu.close();
+            }
+        }
+
+        destroy() {
             this.item_projects_section.removeAll();
-
-            if (this.menu_open) {
-                buildProjectTree(this.config.all_prjs, this.item_projects_section);
-            }
+            this._proc?.force_exit();
+            this.searchProvider = null;
+            super.destroy()
         }
-
-        this.active_project = this.config.active;
-    }
-
-    change_project(name, close = true) {
-        this.active_project = name;
-        this.panelIcon.text = name;
-
-        this._proc?.force_exit();
-        this._proc = Gio.Subprocess.new(
-            ["wechsel", name],
-            Gio.SubprocessFlags.NONE
-        );
-        if (close) {
-            // Close the Menu
-            this.menu.close();
-        }
-    }
-
-    destroy() {
-        this.item_projects_section.removeAll();
-        this._proc?.force_exit();
-        super.destroy()
-    }
-});
-
-function _switchInputSource(display, window, binding) {
-    let config = getConfig();
-    let _switcherPopup = new ProjectSwitcherPopup(this._keybindingAction, this._keybindingActionBackwards, this._indicator, binding, config.all_prjs, config.active);
-    _switcherPopup.connect('destroy', () => {
-        _switcherPopup = null;
     });
-    if (!_switcherPopup.show(binding.get_name().endsWith("backward"), binding.get_name(), binding.get_mask()))
-        _switcherPopup.fadeAndDestroy();
+
+function _switchInputSource(display, window, event, binding) {
+    if (this._indicator.installed !== true) {
+        return
+    }
+    getProjectTree.bind(this)(this._proc, (projects, active) => {
+        let icons = getIcons(projects)
+
+        let _switcherPopup = new ProjectSwitcherPopup(this._keybindingAction, this._keybindingActionBackwards, this._indicator, binding, projects, icons, active);
+        _switcherPopup.connect('destroy', () => {
+            _switcherPopup = null;
+        });
+        if (!_switcherPopup.show(binding.get_name().endsWith("backward"), binding.get_name(), binding.get_mask()))
+            _switcherPopup.fadeAndDestroy();
+    }, Main.notifyError)
 
 }
 
@@ -563,29 +575,19 @@ class DbusService {
     }
 }
 
-export default class ProjectChangerExtension extends Extension {
+export default class WechselExtension extends Extension {
+
     constructor(uuid) {
         super(uuid);
         this._uuid = uuid;
     }
 
     enable() {
-        // Check if Wechsel is installed
-        try {
-            this._proc2 = Gio.Subprocess.new(
-                ["wechsel", "--version"],
-                Gio.SubprocessFlags.NONE,
-            );
-        } catch {
-            throw new Error("Wechsel is not installed. Please install it to use this extension. https://github.com/JustSomeRandomUsername/wechsel");
-        };
-
         this._indicator = new Indicator(this);
-        panel.addToStatusArea(this._uuid, this._indicator);
 
         this.settings = this.getSettings();
         this.settings.bind('show-indicator', this._indicator, 'visible', Gio.SettingsBindFlags.DEFAULT);
-        
+
         this._keybindingAction =
             wm.addKeybinding('switch-projects',
                 this.settings,
@@ -602,7 +604,7 @@ export default class ProjectChangerExtension extends Extension {
 
         let serviceInstance = null;
         this.exportedObject = null;
-        
+
         function onBusAcquired(connection) {
             // Create the class instance, then the D-Bus object
             serviceInstance = new DbusService();
@@ -616,25 +618,41 @@ export default class ProjectChangerExtension extends Extension {
             'org.gnome.shell.extensions.wechsel',
             Gio.BusNameOwnerFlags.NONE,
             onBusAcquired.bind(this),
-            () => {},
-            () => {});
+            () => { },
+            () => { });
+
+        if (this.settings.get_boolean('activate-search-provider')) {
+            this._provider = new SearchProvider(this);
+            registerProvider(this._provider)
+        }
+
+        this._indicator.searchProvider = this._provider
+
+        panel.addToStatusArea(this._uuid, this._indicator);
     }
 
     disable() {
         wm.removeKeybinding("switch-projects");
         wm.removeKeybinding("switch-projects-backward");
-        
+
         this._indicator?.destroy();
         this._indicator = null;
         this.settings = null;
 
-        this._proc2?.force_exit();
-        this._proc2 = null;
-        
+        this._proc?.force_exit();
+        this._proc = null;
+
+
         this.exportedObject.unexport();
 
         if (this.ownerId) {
             Gio.bus_unown_name(this.ownerId);
+        }
+
+        if (this._provider !== null) {
+            unregisterProvider(this._provider)
+            this._provider.destroy();
+            this._provider = null;
         }
     }
 }

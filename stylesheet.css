@@ -42,3 +42,10 @@ SPDX-License_identifier: GPL-3.0-or-later
     margin-bottom: 0;
     padding-bottom: 0;
 }
+
+.bordered-image {
+    border: 5px solid #3498db;
+    /* Blue border */
+    border-radius: 10px;
+    /* Rounded corners */
+}
