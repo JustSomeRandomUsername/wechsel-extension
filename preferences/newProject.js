@@ -20,6 +20,7 @@ SPDX-License_identifier: GPL-3.0-or-later
 
 import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
+import Gdk from 'gi://Gdk';
 import GObject from 'gi://GObject';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
@@ -38,26 +39,48 @@ export const NewPage = GObject.registerClass(
             });
 
             // New Project Group
-            const addPrjGroup = new Adw.PreferencesGroup();
-            this.add(addPrjGroup);
+            const customGroup = new Adw.PreferencesGroup();
+            this.add(customGroup);
+            const customRow = new Gtk.ListBoxRow();
+            customGroup.add(customRow);
+            customRow.add_css_class('no-hover');
+            const hbox = new Gtk.Box({
+                orientation: Gtk.Orientation.HORIZONTAL,
+                spacing: 12,
+                valign: Gtk.Align.CENTER,
+            });
+            customRow.set_child(hbox);
+
+            // Icon
+            hbox.append(this.setupIcon(window))
+            const right = new Gtk.Box({
+                orientation: Gtk.Orientation.HORIZONTAL,
+                height_request: 40,
+                spacing: 6,
+                valign: Gtk.Align.CENTER,
+                halign: Gtk.Align.START,
+            });
+            hbox.append(right);
 
             // Setup List of All Project Names 
             this.name_list = new Gtk.StringList();
 
             // Parent Selector 
-            this.parentRow = new Adw.ComboRow({
-                title: 'Parent',
+            this.parentWidget = new Gtk.DropDown({
                 model: this.name_list,
             });
-            addPrjGroup.add(this.parentRow);
+            right.append(this.parentWidget);
+
+            // Text
+            right.append(new Gtk.Label({
+                label: _('/'),
+            }));
 
             // Name Entry
-            const entryRow = new Adw.ActionRow({ title: _('Name') });
-            addPrjGroup.add(entryRow);
-
             const name_input = new Gtk.Entry({
                 placeholder_text: 'Project name',
             });
+            right.append(name_input);
             // Update Icon Label in case the icon file is not set
             name_input.connect('changed', (entry) => {
                 if (!this.iconFile) {
@@ -65,11 +88,11 @@ export const NewPage = GObject.registerClass(
                 }
             })
 
-            // Icon
-            addPrjGroup.add(this.setupIcon(window))
-
-            entryRow.add_suffix(name_input);
-
+            const folderGroup = new Adw.PreferencesGroup({
+                title: _('Directories'),
+                description: _('These directories will be inherited from the parent project.'),
+            });
+            this.add(folderGroup);
             // Folder Toggles
             const folders = [];
             // TODO Change defaults to be what the selected parent has 
@@ -77,7 +100,7 @@ export const NewPage = GObject.registerClass(
             ["Pictures", "folder-pictures"], ["Desktop", "user-desktop"],
             ["Documents", "folder-documents"], ["Downloads", "folder-download"]]) {
                 const row = new Adw.ActionRow({ title: folder[0] });
-                addPrjGroup.add(row);
+                folderGroup.add(row);
                 const toggle = new Gtk.Switch({
                     active: true,
                     valign: Gtk.Align.CENTER,
@@ -90,16 +113,22 @@ export const NewPage = GObject.registerClass(
                 row.add_prefix(icon);
             }
 
-            const plugins = this.setupPlugins(addPrjGroup)
+            const pluginGroup = new Adw.PreferencesGroup({ 
+                title: _('Plugins') 
+            });
+            this.add(pluginGroup);
+            const plugins = this.setupPlugins(pluginGroup);
 
+            const bottomGroup = new Adw.PreferencesGroup();
+            this.add(bottomGroup);
             // Create Button
             const createButton = new Gtk.Button({
-                label: 'Add new',
+                label: 'Create',
                 valign: Gtk.Align.CENTER,
                 halign: Gtk.Align.END,
                 cssClasses: ['raised'],
             });
-            addPrjGroup.add(createButton);
+            bottomGroup.add(createButton);
 
             createButton.connect('clicked', () => {
                 let name = name_input.text;
@@ -120,7 +149,7 @@ export const NewPage = GObject.registerClass(
                 this._proc = launcher.spawnv(["wechsel",
                     'new',
                     name,
-                    '--parent', this.name_list.get_string(this.parentRow.get_selected()),
+                    '--parent', this.name_list.get_string(this.parentWidget.get_selected()),
                     '--folders=' + folders.filter((x) => x[0].active).map((x) => x[1]).join(" "),
                 ]);
 
@@ -164,9 +193,8 @@ export const NewPage = GObject.registerClass(
                 for (const folder of folders) {
                     folder[0].active = true;
                 }
-                this.parentRow.set_selected(0);
+                this.parentWidget.set_selected(0);
             });
-
 
             this.connect('map', () => {
                 this.updateProjectList();
@@ -174,69 +202,123 @@ export const NewPage = GObject.registerClass(
         }
 
         setupPlugins(group) {
-            const plugins = []
-            group.add(new Adw.ActionRow({ title: _('Plugins:') }))
-
             const script_folder = Gio.File.new_for_path(GLib.build_filenamev([GLib.get_home_dir(), '.config', 'wechsel', 'on-prj-create.d']));
 
-            if (script_folder.query_exists(null)) {
-
-                for (const script of script_folder.enumerate_children("%G_FILE_ATTRIBUTE_STANDARD_NAME", Gio.FileQueryInfoFlags.NONE, null)) {
-                    const title = script.get_name()
-                    const row = new Adw.ActionRow({ title: title });
-                    group.add(row)
-                    const toggle = new Gtk.Switch({
-                        active: true,
-                        valign: Gtk.Align.CENTER,
-                    })
-                    plugins.push([title, toggle])
-                    row.add_suffix(toggle)
-                }
+            if (!script_folder.query_exists(null)) {
+                return [];
             }
+            const scripts = [...script_folder.enumerate_children("%G_FILE_ATTRIBUTE_STANDARD_NAME", Gio.FileQueryInfoFlags.NONE, null)];
+            if (scripts.length === 0) {
+                return [];
+            }
+
+            const plugins = []
+
+            for (const script of scripts) {
+                const title = script.get_name()
+                const row = new Adw.ActionRow({ title: title });
+                group.add(row)
+                const toggle = new Gtk.Switch({
+                    active: true,
+                    valign: Gtk.Align.CENTER,
+                })
+                plugins.push([title, toggle])
+                row.add_suffix(toggle)
+            }
+            
             return plugins
         }
 
         setupIcon(window) {
+            const size = 128; // Size of the icon in pixels
+
+            // Add a CSS provider
+            const cssProvider = new Gtk.CssProvider();
+            cssProvider.load_from_data(`
+                .bordered-image {
+                    border: 1px solid white;
+                    border-radius: 8px;
+                    max-width: ${size}px;
+                    max-height: ${size}px;
+                }
+
+                .inset {
+                    margin: 4px;
+                }
+
+                .no-hover:hover {
+                    background-color: transparent;
+                    box-shadow: none;
+                }
+            `, -1);
+
+            Gtk.StyleContext.add_provider_for_display(
+                Gdk.Display.get_default(),
+                cssProvider,
+                Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+            );
+
+            // Create overlay
             let overlay = new Gtk.Overlay({
                 halign: Gtk.Align.CENTER,
                 valign: Gtk.Align.CENTER,
             });
-            const row = new Adw.ActionRow({ title: _('Icon') });
+            overlay.add_css_class('bordered-image');
 
-            let iconBox = new Gtk.Box({
-                orientation: Gtk.Orientation.VERTICAL
-            });
-            row.add_suffix(iconBox)
-            iconBox.append(overlay)
-
-            const fileDialog = new Gtk.FileDialog();
+            // preview label for icon
             this.iconLabel = new Gtk.Label({
                 label: "",
-                width_request: 64 * 2,
-                height_request: 64 * 2,
-            })
-            const icon = new Gtk.Image({
-                pixel_size: 64 * 2
-            })
-
-            overlay.add_css_class('bordered-image')
-
-            const iconButton = new Gtk.Button({
-                valign: Gtk.Align.END,
-                halign: Gtk.Align.END,
-                icon_name: "document-open",
+                width_request: size,
+                height_request: size,  // smaller height for label only
+                halign: Gtk.Align.CENTER,
+                hexpand: false,
             });
+
+            // Image widget
+            const icon = new Gtk.Image({
+                pixel_size: size,
+            });
+            icon.set_can_focus(false);
+            icon.set_focus_on_click(false);
+            icon.set_sensitive(false);
+
+            // Stack for toggling image / label preview
+            const stack = new Gtk.Stack({
+                halign: Gtk.Align.CENTER,
+                valign: Gtk.Align.CENTER,
+                width_request: size,
+                height_request: size,
+            });
+            stack.add_named(this.iconLabel, 'label');
+            stack.add_named(icon, 'image');
+            stack.set_visible_child_name('label');  // default to label
+            overlay.set_child(stack);
+
+            // File picker button
+            const iconButton = new Gtk.Button({
+                icon_name: "document-open",
+                valign: Gtk.Align.START,
+                halign: Gtk.Align.END,
+            });
+            iconButton.add_css_class('inset');
+            iconButton.set_tooltip_text(_('Select an image for the project'));
+            overlay.add_overlay(iconButton);
+
+            // File dialog connection
+            const fileDialog = new Gtk.FileDialog();
             iconButton.connect('clicked', () => {
                 fileDialog.open(window, null, (dialog, res) => {
-                    this.iconFile = dialog.open_finish(res)
-                    icon.set_from_file(this.iconFile.get_path())
-                    overlay.set_child(icon)
+                    this.iconFile = dialog.open_finish(res);
+                    if (this.iconFile) {
+                        icon.set_from_file(this.iconFile.get_path());
+                        stack.set_visible_child_name('image');  // show image
+                    } else {
+                        stack.set_visible_child_name('label');  // fallback to label
+                    }
                 });
             });
 
-            overlay.add_overlay(iconButton);
-            overlay.set_child(this.iconLabel);
-            return row
+            return overlay;
         }
 
         updateProjectList() {
@@ -251,7 +333,7 @@ export const NewPage = GObject.registerClass(
                 }
                 addItem(projects);
 
-                this.parentRow.set_model(this.name_list)
+                this.parentWidget.set_model(this.name_list)
             });
         }
 
@@ -261,4 +343,5 @@ export const NewPage = GObject.registerClass(
             this.name_list = null;
             super.destroy();
         }
-    });
+    }
+);
