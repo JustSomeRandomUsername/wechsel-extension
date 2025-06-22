@@ -69,7 +69,9 @@ export const NewPage = GObject.registerClass(
             this.parentWidget = new Gtk.DropDown({
                 model: this.name_list,
             });
+            this.parentWidget.connect("notify::selected", () => this.updateFolderToggles());
             right.append(this.parentWidget);
+
 
             // Text
             right.append(new Gtk.Label({
@@ -88,33 +90,33 @@ export const NewPage = GObject.registerClass(
                 }
             })
 
-            const folderGroup = new Adw.PreferencesGroup({
+            this.folderGroup = new Adw.PreferencesGroup({
                 title: _('Directories'),
-                description: _('These directories will be inherited from the parent project.'),
+                description: _('These directories will be added to your new project.'),
             });
-            this.add(folderGroup);
+            this.add(this.folderGroup);
             // Folder Toggles
-            const folders = [];
+            this.folders = [];
             // TODO Change defaults to be what the selected parent has 
-            for (const folder of [["Music", "folder-music"], ["Videos", "folder-videos"],
-            ["Pictures", "folder-pictures"], ["Desktop", "user-desktop"],
-            ["Documents", "folder-documents"], ["Downloads", "folder-download"]]) {
-                const row = new Adw.ActionRow({ title: folder[0] });
-                folderGroup.add(row);
-                const toggle = new Gtk.Switch({
-                    active: true,
-                    valign: Gtk.Align.CENTER,
-                });
-                folders.push([toggle, folder[0]]);
-                row.add_suffix(toggle);
-                const icon = new Gtk.Image({
-                    icon_name: "" + folder[1],
-                });
-                row.add_prefix(icon);
-            }
+            // for (const folder of [["Music", "folder-music"], ["Videos", "folder-videos"],
+            // ["Pictures", "folder-pictures"], ["Desktop", "user-desktop"],
+            // ["Documents", "folder-documents"], ["Downloads", "folder-download"]]) {
+            //     const row = new Adw.ActionRow({ title: folder[0] });
+            //     this.folderGroup.add(row);
+            //     const toggle = new Gtk.Switch({
+            //         active: true,
+            //         valign: Gtk.Align.CENTER,
+            //     });
+            //     this.folders.push([toggle, folder[0]]);
+            //     row.add_suffix(toggle);
+            //     const icon = new Gtk.Image({
+            //         icon_name: "" + folder[1],
+            //     });
+            //     row.add_prefix(icon);
+            // }
 
-            const pluginGroup = new Adw.PreferencesGroup({ 
-                title: _('Plugins') 
+            const pluginGroup = new Adw.PreferencesGroup({
+                title: _('Plugins')
             });
             this.add(pluginGroup);
             const plugins = this.setupPlugins(pluginGroup);
@@ -145,7 +147,7 @@ export const NewPage = GObject.registerClass(
                 // Set an environment variable
                 launcher.setenv("PLUGINS", plugin_env, true);
 
-                // Launch a subprocess (Example: `env` to check environment variables)
+                // Launch a subprocess
                 this._proc = launcher.spawnv(["wechsel",
                     'new',
                     name,
@@ -159,6 +161,7 @@ export const NewPage = GObject.registerClass(
                     //     Main.notifyError('An error occurred while adding the project', stderr);
                     // }
 
+                    // Copy Icon into the project
                     if (this.iconFile) {
                         this._proc = Gio.Subprocess.new(
                             ["wechsel", "path", name],
@@ -225,23 +228,30 @@ export const NewPage = GObject.registerClass(
                 plugins.push([title, toggle])
                 row.add_suffix(toggle)
             }
-            
+
             return plugins
         }
+        updateFolderToggles() {
+            if (!this.folderMap) {
+                return;
+            }
+            let parent_folders = this.folderMap[this.name_list.get_string([this.parentWidget.get_selected()])];
+            if (!parent_folders) {
+                return;
+            }
+            for (let folder of this.folders) {
+                folder[0].active = parent_folders.includes(folder[1]);
+            }
+        }
+
 
         setupIcon(window) {
             const size = 128; // Size of the icon in pixels
 
             // Add a CSS provider
             const cssProvider = new Gtk.CssProvider();
-            cssProvider.load_from_data(`
-                .bordered-image {
-                    border: 1px solid white;
-                    border-radius: 8px;
-                    max-width: ${size}px;
-                    max-height: ${size}px;
-                }
 
+            cssProvider.load_from_data(`
                 .inset {
                     margin: 4px;
                 }
@@ -263,7 +273,9 @@ export const NewPage = GObject.registerClass(
                 halign: Gtk.Align.CENTER,
                 valign: Gtk.Align.CENTER,
             });
-            overlay.add_css_class('bordered-image');
+            // This gives the icon widget the correct background color
+            overlay.add_css_class('card');
+
 
             // preview label for icon
             this.iconLabel = new Gtk.Label({
@@ -301,7 +313,7 @@ export const NewPage = GObject.registerClass(
                 halign: Gtk.Align.END,
             });
             iconButton.add_css_class('inset');
-            iconButton.set_tooltip_text(_('Select an image for the project'));
+            iconButton.set_tooltip_text(_('Select an icon for the project'));
             overlay.add_overlay(iconButton);
 
             // File dialog connection
@@ -322,25 +334,78 @@ export const NewPage = GObject.registerClass(
         }
 
         updateProjectList() {
-            getProjectTree.bind(this)(this._proc, (projects) => {
+            getProjectTree.bind(this)(this._proc, (projects, active) => {
                 // Setup List of All Project Names 
                 this.name_list = new Gtk.StringList();
+                let folder_names = new Set();
+
+                let active_index = 0;
+                this.folderMap = {};
                 const addItem = (prj) => {
-                    this.name_list.append(prj.name)
+                    this.name_list.append(prj.name);
+                    prj.folders.forEach(folder => {
+                        folder_names.add(folder);
+                    });
+                    this.folderMap[prj.name] = prj.folders;
+                    if (active === prj.name) {
+                        active_index = this.name_list.n_items - 1;
+                    }
                     for (const child of prj.children) {
                         addItem(child);
                     }
                 }
                 addItem(projects);
 
-                this.parentWidget.set_model(this.name_list)
-            });
+                this.parentWidget.set_model(this.name_list);
+
+                this.parentWidget.set_selected(active_index);
+
+
+                // Clear the folder list
+                for (let folder of this.folders) {
+                    this.folderGroup.remove(folder[2]);
+                }
+                // Setup the folder List 
+                this.folders = [];
+                for (let folder of folder_names) {
+                    const row = new Adw.ActionRow({ title: folder });
+                    this.folderGroup.add(row);
+
+                    const toggle = new Gtk.Switch({
+                        valign: Gtk.Align.CENTER,
+                    });
+                    this.folders.push([toggle, folder, row]);
+                    row.add_suffix(toggle);
+
+                    let icon_name = "folder";
+                    switch (folder) {
+                        case "Music": icon_name = "folder-music"; break;
+                        case "Videos": icon_name = "folder-videos"; break;
+                        case "Pictures": icon_name = "folder-pictures"; break;
+                        case "Desktop": icon_name = "user-desktop"; break;
+                        case "Documents": icon_name = "folder-documents"; break;
+                        case "Downloads": icon_name = "folder-download"; break;
+                    }
+                    const icon = new Gtk.Image({
+                        icon_name: "" + icon_name,
+                    });
+                    row.add_prefix(icon);
+
+                }
+
+                this.updateFolderToggles();
+            }, {}, true);
         }
 
         destroy() {
-            this._proc.force_exit();
-            this._proc = null;
+            if (this._proc) {
+                this._proc.force_exit();
+                this._proc = null;
+            }
             this.name_list = null;
+            this.folders = null;
+            this.folderMap = null;
+
             super.destroy();
         }
     }

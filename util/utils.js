@@ -40,12 +40,14 @@ import Gio from 'gi://Gio';
  * @param {function(ProjectTree, string): void} lambda 
  * @param {function(string, string): void} onError 
  */
-export function getProjectTree(proc, lambda, onError = (_1, _2) => { }) {
+export function getProjectTree(proc, lambda, onError = (_1, _2) => { }, request_folders = false) {
+    let cmd = ["wechsel", 'tree'];
+    if (request_folders) {
+        cmd.push("--folders");
+    }
     try {
         proc = Gio.Subprocess.new(
-            ["wechsel",
-                'tree',
-            ],
+            cmd,
             Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
         );
     } catch {

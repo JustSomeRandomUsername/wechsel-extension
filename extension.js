@@ -455,7 +455,7 @@ const Indicator = GObject.registerClass(
             this.item_settings = new PopupMenu.PopupMenuItem('Settings');
             // open preferences page when settings is activated
             this.item_settings.connect('activate', () => {
-                this.extension.openPreferences();
+                this.extension.openPreferences(); // TODO Err:  Unhandled promise rejection. To suppress this warning, add an error handler to your promise chain with .catch() or a try-catch block around your await expression
             });
             this.item_settings.connect('enter-event', () => {
                 this.emit('hover_changed');
