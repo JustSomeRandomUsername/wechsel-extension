@@ -29,6 +29,34 @@ import { getProjectTree } from '../util/utils.js';
 
 import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
+export function setupPage(newPage) {
+
+    let page = new Adw.PreferencesPage({
+        title: _('New Project'),
+        icon_name: 'document-new-symbolic',
+        name: 'NewProjectPage',
+        // cssClasses: ['no-margins']
+    });
+    // no-margins
+    const group = new Adw.PreferencesGroup({
+        cssClasses: ['no-margins']
+    });
+
+    page.add(group);
+
+    group.add(newPage);
+
+    const createButton = new Gtk.Button({
+        label: 'Create',
+        valign: Gtk.Align.CENTER,
+        halign: Gtk.Align.END,
+        cssClasses: ['raised'],
+    });
+    group.add(createButton);
+    return page;
+
+
+}
 export const NewPage = GObject.registerClass(
     class NewProjectPage extends Adw.PreferencesPage {
         constructor(window) {
@@ -44,6 +72,7 @@ export const NewPage = GObject.registerClass(
             const customRow = new Gtk.ListBoxRow();
             customGroup.add(customRow);
             customRow.add_css_class('no-hover');
+
             const hbox = new Gtk.Box({
                 orientation: Gtk.Orientation.HORIZONTAL,
                 spacing: 12,
@@ -68,6 +97,7 @@ export const NewPage = GObject.registerClass(
             // Parent Selector 
             this.parentWidget = new Gtk.DropDown({
                 model: this.name_list,
+                tooltip_text: "Parent Project"
             });
             this.parentWidget.connect("notify::selected", () => this.updateFolderToggles());
             right.append(this.parentWidget);
@@ -94,26 +124,24 @@ export const NewPage = GObject.registerClass(
                 title: _('Directories'),
                 description: _('These directories will be added to your new project.'),
             });
+
+            this.grid = new Gtk.Grid({
+                column_spacing: 12,
+                row_spacing: 6,
+                column_homogeneous: true,
+            });
+
+            const rowWrapper = new Gtk.ListBoxRow({
+                // title: 'Choose Options',
+                cssClasses: ["card", "folderRow"]
+            });
+            rowWrapper.set_child(this.grid);
+            rowWrapper.set_activatable(false);  // Don’t highlight row on click
+            this.folderGroup.add(rowWrapper);
+
             this.add(this.folderGroup);
             // Folder Toggles
             this.folders = [];
-            // TODO Change defaults to be what the selected parent has 
-            // for (const folder of [["Music", "folder-music"], ["Videos", "folder-videos"],
-            // ["Pictures", "folder-pictures"], ["Desktop", "user-desktop"],
-            // ["Documents", "folder-documents"], ["Downloads", "folder-download"]]) {
-            //     const row = new Adw.ActionRow({ title: folder[0] });
-            //     this.folderGroup.add(row);
-            //     const toggle = new Gtk.Switch({
-            //         active: true,
-            //         valign: Gtk.Align.CENTER,
-            //     });
-            //     this.folders.push([toggle, folder[0]]);
-            //     row.add_suffix(toggle);
-            //     const icon = new Gtk.Image({
-            //         icon_name: "" + folder[1],
-            //     });
-            //     row.add_prefix(icon);
-            // }
 
             const pluginGroup = new Adw.PreferencesGroup({
                 title: _('Plugins')
@@ -122,6 +150,7 @@ export const NewPage = GObject.registerClass(
             const plugins = this.setupPlugins(pluginGroup);
 
             const bottomGroup = new Adw.PreferencesGroup();
+
             this.add(bottomGroup);
             // Create Button
             const createButton = new Gtk.Button({
@@ -260,6 +289,15 @@ export const NewPage = GObject.registerClass(
                     background-color: transparent;
                     box-shadow: none;
                 }
+
+                .no-margins {
+                    margin: 0 0 0 0;
+                    padding: 0 0 0 0;
+                }
+
+                .folderRow {
+                    padding: 15px;
+                }
             `, -1);
 
             Gtk.StyleContext.add_provider_for_display(
@@ -272,6 +310,7 @@ export const NewPage = GObject.registerClass(
             let overlay = new Gtk.Overlay({
                 halign: Gtk.Align.CENTER,
                 valign: Gtk.Align.CENTER,
+                tooltip_text: "Project Icon"
             });
             // This gives the icon widget the correct background color
             overlay.add_css_class('card');
@@ -367,15 +406,34 @@ export const NewPage = GObject.registerClass(
                 }
                 // Setup the folder List 
                 this.folders = [];
+                let i = 0;
                 for (let folder of folder_names) {
-                    const row = new Adw.ActionRow({ title: folder });
-                    this.folderGroup.add(row);
+                    let box = new Gtk.Box({ orientation: Gtk.Orientation.HORIZONTAL });
+
+                    const row = Math.floor(i / 2);
+                    const col = i % 2;
+
+
+                    // const row = new Adw.ActionRow({ title: folder });
+
+                    // box.append(row);
+                    // box.append(row2);
+
+
+                    // this.folderGroup.add(row);
+                    // this.folderGroup.add(box);
+                    // this.folderBoxLeft.append(row);
+                    // this.folderBoxRight.append(row);
+
 
                     const toggle = new Gtk.Switch({
                         valign: Gtk.Align.CENTER,
                     });
                     this.folders.push([toggle, folder, row]);
-                    row.add_suffix(toggle);
+
+                    box.append(new Gtk.Label({ label: folder }));
+                    box.append(new Gtk.Box({ hexpand: true }))
+                    box.append(toggle);
 
                     let icon_name = "folder";
                     switch (folder) {
@@ -389,8 +447,10 @@ export const NewPage = GObject.registerClass(
                     const icon = new Gtk.Image({
                         icon_name: "" + icon_name,
                     });
-                    row.add_prefix(icon);
+                    // row.add_prefix(icon);
 
+                    this.grid.attach(box, col, row, 1, 1);
+                    i++;
                 }
 
                 this.updateFolderToggles();
