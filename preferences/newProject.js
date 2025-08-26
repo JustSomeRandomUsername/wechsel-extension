@@ -48,8 +48,6 @@ export const NewProjectPage = GObject.registerClass(
             /** @type {Array<{name: string, toggle: Gtk.Switch}>} list of plugin states */
             this.plugin_state = this.addPluginGroup();
 
-            this.addCreateButton();
-
             this.connect('map', () => {
                 this.updateProjectList();
             });
@@ -70,10 +68,8 @@ export const NewProjectPage = GObject.registerClass(
             const group = new Adw.PreferencesGroup();
             this.add(group);
 
-            const row = new Gtk.ListBoxRow();
-            row.add_css_class('no-hover');
+            const row = new Gtk.ListBoxRow({ cssClasses: ['no-hover'] });
             group.add(row);
-            // TODO
 
             /** @type {Gtk.Box} A horizontal wrapper box to wrap the elements, as a row can only have a single child */
             const outer_box = new Gtk.Box({
@@ -81,22 +77,20 @@ export const NewProjectPage = GObject.registerClass(
                 spacing: 12,
                 valign: Gtk.Align.CENTER,
             });
-            row.set_child(outer_box);
-            // const group = new HBoxGroup();
-
-
-            /** @type {IconSelector} The icon selector for the project */
-            const icon = new IconSelector(this.window);
-            outer_box.append(icon);
 
             /** @type {Gtk.Box} Right side box containing the parent selector and name entry. Wrapped in a box to ensure proper spacing. */
-            const right = new Gtk.Box({
+            const inner_box = new Gtk.Box({
                 orientation: Gtk.Orientation.HORIZONTAL,
                 height_request: 40,
                 spacing: 6,
                 valign: Gtk.Align.CENTER,
                 halign: Gtk.Align.START,
             });
+
+            /** @type {IconSelector} The icon selector for the project */
+            const icon = new IconSelector(this.window);
+
+
             /** @type {Gtk.StringList} A list of project names for reference in the parent selection dropdown*/
             const projects = new Gtk.StringList();
             /** @type {Gtk.DropDown} A dropdown for selecting the parent project */
@@ -105,12 +99,10 @@ export const NewProjectPage = GObject.registerClass(
                 tooltip_text: "Parent Project",
             });
             parent.connect("notify::selected", () => this.updateFolderToggles())
-            right.append(parent);
 
-            // Separator
-            right.append(new Gtk.Label({
+            const separator = new Gtk.Label({
                 label: _('/'),
-            }));
+            });
 
             /** @type {Gtk.Entry} An entry for the project name */
             const name = new Gtk.Entry({
@@ -122,8 +114,15 @@ export const NewProjectPage = GObject.registerClass(
                 if (icon.file) return;
                 icon.label.set_markup_with_mnemonic(format_icon_label(entry.text.substring(0, 3)))
             })
-            right.append(name);
-            outer_box.append(right);
+
+            row.set_child(outer_box);
+            outer_box.append(icon);
+            outer_box.append(inner_box);
+
+            inner_box.append(parent);
+            inner_box.append(separator);
+            inner_box.append(name);
+            inner_box.append(this.setupCreateButton());
 
             return {
                 projects,
@@ -194,8 +193,7 @@ export const NewProjectPage = GObject.registerClass(
             return plugins;
         }
 
-        addCreateButton() {
-            const group = new Adw.PreferencesGroup();
+        setupCreateButton() {
             /** @type {Gtk.Button} The create button */
             const button = new Gtk.Button({
                 label: 'Create',
@@ -203,7 +201,6 @@ export const NewProjectPage = GObject.registerClass(
                 halign: Gtk.Align.END,
                 cssClasses: ['raised'],
             });
-            group.add(button);
 
             button.connect('clicked', () => {
                 /** @type {string} The project name */
@@ -281,8 +278,7 @@ export const NewProjectPage = GObject.registerClass(
                 }
                 this.header_state.parent.set_selected(0);
             });
-
-            this.add(group);
+            return button;
         }
 
         /** Updates the Toggles in the Folder widget according to the selected parent project  */
