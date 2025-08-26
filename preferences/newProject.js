@@ -20,16 +20,17 @@ SPDX-License_identifier: GPL-3.0-or-later
 
 import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
-import Gdk from 'gi://Gdk';
 import GObject from 'gi://GObject';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 
 import { getProjectTree } from '../util/utils.js';
+import { HBoxGroup, ToggleRow, IconSelector, format_icon_label } from '../util/gtk.js';
+
 
 import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
-export const NewPage = GObject.registerClass(
+export const NewProjectPage = GObject.registerClass(
     class NewProjectPage extends Adw.PreferencesPage {
         constructor(window) {
             super({
@@ -38,21 +39,42 @@ export const NewPage = GObject.registerClass(
                 name: 'NewProjectPage'
             });
 
-            // New Project Group
-            const customGroup = new Adw.PreferencesGroup();
-            this.add(customGroup);
-            const customRow = new Gtk.ListBoxRow();
-            customGroup.add(customRow);
-            customRow.add_css_class('no-hover');
-            const hbox = new Gtk.Box({
-                orientation: Gtk.Orientation.HORIZONTAL,
-                spacing: 12,
-                valign: Gtk.Align.CENTER,
-            });
-            customRow.set_child(hbox);
+            this.window = window;
 
-            // Icon
-            hbox.append(this.setupIcon(window))
+            /** @type {{projects: Gtk.StringList, parent: Gtk.DropDown, name: Gtk.Entry, icon: IconSelector}} references to the main selection elements */
+            this.header_state = this.addHeaderGroup();
+            /** @type {Array<{name: string, toggle: Gtk.Switch}>} list of folder states */
+            this.folder_state = this.addFolderGroup();
+            /** @type {Array<{name: string, toggle: Gtk.Switch}>} list of plugin states */
+            this.plugin_state = this.addPluginGroup();
+
+            this.addCreateButton();
+
+            this.connect('map', () => {
+                this.updateProjectList();
+            });
+        }
+
+        /**
+         * Adds the main selection elements for the new project
+         * (parent, name, icon)
+         * @returns {{
+         *  projects: Gtk.StringList,
+         *  parent: Gtk.DropDown,
+         *  name: Gtk.Entry,
+         *  icon: IconSelector
+         * }} references to the created elements
+         */
+        addHeaderGroup() {
+            /** @type {HBoxGroup} Main group containing a single row which contains all elements */
+            const header_group = new HBoxGroup();
+            this.add(header_group);
+            
+            /** @type {IconSelector} The icon selector for the project */
+            const icon = new IconSelector(this.window);
+            header_group.append(icon);
+
+            /** @type {Gtk.Box} Right side box containing the parent selector and name entry. Wrapped in a box to ensure proper spacing. */
             const right = new Gtk.Box({
                 orientation: Gtk.Orientation.HORIZONTAL,
                 height_request: 40,
@@ -60,287 +82,214 @@ export const NewPage = GObject.registerClass(
                 valign: Gtk.Align.CENTER,
                 halign: Gtk.Align.START,
             });
-            hbox.append(right);
-
-            // Setup List of All Project Names 
-            this.name_list = new Gtk.StringList();
-
-            // Parent Selector 
-            this.parentWidget = new Gtk.DropDown({
-                model: this.name_list,
+            /** @type {Gtk.StringList} A list of project names for reference in the parent selection dropdown*/
+            const projects = new Gtk.StringList();
+            /** @type {Gtk.DropDown} A dropdown for selecting the parent project */
+            const parent = new Gtk.DropDown({
+                model: projects,
             });
-            right.append(this.parentWidget);
-
-            // Text
+            right.append(parent);
+            // Separator
             right.append(new Gtk.Label({
                 label: _('/'),
             }));
 
-            // Name Entry
-            const name_input = new Gtk.Entry({
-                placeholder_text: 'Project name',
+            /** @type {Gtk.Entry} An entry for the project name */
+            const name = new Gtk.Entry({
+                placeholder_text: 'Project Name',
             });
-            right.append(name_input);
             // Update Icon Label in case the icon file is not set
-            name_input.connect('changed', (entry) => {
-                if (!this.iconFile) {
-                    this.iconLabel.set_markup_with_mnemonic(`<span font="42">${entry.text.substring(0, 3)}</span>`)
-                }
+            name.connect('changed', (entry) => {
+                if (icon.file) return;
+                icon.label.set_markup_with_mnemonic(format_icon_label(entry.text.substring(0, 3)))
             })
+            right.append(name);
+            header_group.append(right);
 
-            const folderGroup = new Adw.PreferencesGroup({
+            return {
+                projects,
+                parent,
+                name,
+                icon,
+            };
+        }
+
+        /**
+         * Adds a group with toggleable rows for each standard folder
+         * @returns {Array<{name: string, toggle: Gtk.Switch}>} reference to folder states
+         */
+        addFolderGroup() {
+            /** @type {Adw.PreferencesGroup} Group for folder toggles */
+            const group = new Adw.PreferencesGroup({
                 title: _('Directories'),
                 description: _('These directories will be inherited from the parent project.'),
             });
-            this.add(folderGroup);
-            // Folder Toggles
-            const folders = [];
-            // TODO Change defaults to be what the selected parent has 
-            for (const folder of [["Music", "folder-music"], ["Videos", "folder-videos"],
-            ["Pictures", "folder-pictures"], ["Desktop", "user-desktop"],
-            ["Documents", "folder-documents"], ["Downloads", "folder-download"]]) {
-                const row = new Adw.ActionRow({ title: folder[0] });
-                folderGroup.add(row);
-                const toggle = new Gtk.Switch({
-                    active: true,
-                    valign: Gtk.Align.CENTER,
-                });
-                folders.push([toggle, folder[0]]);
-                row.add_suffix(toggle);
-                const icon = new Gtk.Image({
-                    icon_name: "" + folder[1],
-                });
-                row.add_prefix(icon);
-            }
 
-            const pluginGroup = new Adw.PreferencesGroup({ 
+            // TODO: Change defaults to be what the selected parent has 
+            /** @type {Array<{name: string, toggle: Gtk.Switch}>} reference to folder states */
+            const refs = [];
+            for (const [title, icon_name] of Object.entries({
+                Music: 'folder-music',
+                Videos: 'folder-videos',
+                Pictures: 'folder-pictures',
+                Desktop: 'user-desktop',
+                Documents: 'folder-documents',
+                Downloads: 'folder-download',
+            })) {
+                const row = new ToggleRow({ title });
+                row.add_prefix(new Gtk.Image({ icon_name }));
+                group.add(row);
+                refs.push({ name: title, toggle: row.toggle });
+            }
+            this.add(group);
+            return refs;
+        }
+
+        /**
+         * Adds a group with toggleable rows for each script in `~/.config/wechsel/on-prj-create.d`
+         * @returns {Array<{name: string, toggle: Gtk.Switch}>} reference to plugin states
+         */
+        addPluginGroup() {
+            /** @type {Adw.PreferencesGroup} Group for plugin toggles */
+            const group = new Adw.PreferencesGroup({ 
                 title: _('Plugins') 
             });
-            this.add(pluginGroup);
-            const plugins = this.setupPlugins(pluginGroup);
 
-            const bottomGroup = new Adw.PreferencesGroup();
-            this.add(bottomGroup);
-            // Create Button
-            const createButton = new Gtk.Button({
+            /** @type {Gio.File} directory containing the scripts */
+            const script_folder = Gio.File.new_for_path(GLib.build_filenamev([GLib.get_home_dir(), '.config', 'wechsel', 'on-prj-create.d']));
+
+            if (!script_folder.query_exists(null)) return [];
+
+            /** @type {Array<Gio.File>} Array of script files */
+            const scripts = [...script_folder.enumerate_children("%G_FILE_ATTRIBUTE_STANDARD_NAME", Gio.FileQueryInfoFlags.NONE, null)];
+
+            /** @type {Array<{name: string, toggle: Gtk.Switch}>} reference to plugin states */
+            const plugins = [];
+            for (const script of scripts) {
+                const row = new ToggleRow({
+                    title: script.get_name()
+                });
+                group.add(row);
+                plugins.push({ name: script.get_name(), toggle: row.toggle });
+            }
+
+            if (scripts.length > 0) {
+                this.add(group);
+            }
+            return plugins;
+        }
+
+        addCreateButton() {
+            const group = new Adw.PreferencesGroup();
+            /** @type {Gtk.Button} The create button */
+            const button = new Gtk.Button({
                 label: 'Create',
                 valign: Gtk.Align.CENTER,
                 halign: Gtk.Align.END,
                 cssClasses: ['raised'],
             });
-            bottomGroup.add(createButton);
+            group.add(button);
 
-            createButton.connect('clicked', () => {
-                let name = name_input.text;
+            button.connect('clicked', () => {
+                /** @type {string} The project name */
+                const name = this.header_state.name.text;
+                if (name === "") return;
 
-                if (name === "") {
-                    return
-                }
-
-                let launcher = new Gio.SubprocessLauncher({
+                /** @type {Gio.SubprocessLauncher} Launcher for the subprocess */
+                const launcher = new Gio.SubprocessLauncher({
                     flags: Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE,
                 });
 
-                const plugin_env = plugins.filter((x) => x[1].active).map((x) => x[0]).join(";")
-                // Set an environment variable
+                /** @type {string} The plugin environment variable */
+                const plugin_env = this.plugin_state
+                    .filter((plugin) => plugin.toggle.active)
+                    .map((plugin) => plugin.name)
+                    .join(";");
+
+                // set the PLUGINS environment variable for wechsel backend
                 launcher.setenv("PLUGINS", plugin_env, true);
 
-                // Launch a subprocess (Example: `env` to check environment variables)
+                // Call `wechsel new <name> --parent <selected_parent> --folders=<folder_states>`
                 this._proc = launcher.spawnv(["wechsel",
                     'new',
                     name,
-                    '--parent', this.name_list.get_string(this.parentWidget.get_selected()),
-                    '--folders=' + folders.filter((x) => x[0].active).map((x) => x[1]).join(" "),
+                    '--parent', this.header_state.projects.get_string(this.header_state.parent.get_selected()),
+                    `--folders=${
+                        this.folder_state
+                            .filter((folder) => folder.toggle.active)
+                            .map((folder) => folder.name)
+                            .join(" ")
+                    }`,
                 ]);
 
-                this._proc.communicate_utf8_async(null, null, (subprocess /*@type {Gio.Subprocess}*/, result /*@type {Gio.AsyncResult}*/, _data) => {
-                    const [_success, _stdout, _stderr] = this._proc.communicate_utf8_finish(result)
-                    // if (stderr !== "") {
-                    //     Main.notifyError('An error occurred while adding the project', stderr);
-                    // }
+                this._proc.communicate_utf8_async(null, null, (_subprocess, result /*@type {Gio.AsyncResult}*/, _data) => {
+                    this._proc.communicate_utf8_finish(result);
 
-                    if (this.iconFile) {
+                    const icon_file = this.header_state.icon.file;
+                    if (icon_file) {
                         this._proc = Gio.Subprocess.new(
                             ["wechsel", "path", name],
                             Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
                         );
 
-                        this._proc.communicate_utf8_async(null, null, (subprocess /*@type {Gio.Subprocess}*/, result /*@type {Gio.AsyncResult}*/, _data) => {
-                            const [_success, stdout, _stderr] = this._proc.communicate_utf8_finish(result)
-                            // if (stderr !== "") {
-                            //     Main.notifyError('An error occurred while adding the project', stderr);
-                            // }
-                            if (stdout !== "") {
-                                let suffix = this.iconFile.get_basename().split('.')
-                                if (suffix.length > 1) {
-                                    let target = Gio.File.new_for_path(`${stdout.trim()}/icon.${suffix.pop()}`)
-                                    this.iconFile.copy(target, Gio.FileQueryInfoFlags.NONE, null, null)
+                        this._proc.communicate_utf8_async(null, null, (_subprocess, result /*@type {Gio.AsyncResult}*/, _data) => {
+                            this._proc.communicate_utf8_finish(result)
+                            if (stdout == "") return; 
+                            
+                            let suffix = icon_file.get_basename().split('.')
+                            if (suffix.length <= 1) return; 
 
-                                    const folder = `file://${stdout.trim()}`;
-                                    Gio.AppInfo.launch_default_for_uri(folder, null);
+                            let target = Gio.File.new_for_path(`${stdout.trim()}/icon.${suffix.pop()}`)
+                            icon_file.copy(target, Gio.FileQueryInfoFlags.NONE, null, null)
 
-                                }
-                            }
+                            const folder = `file://${stdout.trim()}`;
+                            Gio.AppInfo.launch_default_for_uri(folder, null);
                         });
                     }
 
                     this.updateProjectList();
-
                 });
 
                 // Reset the form
-                name_input.text = "";
-                for (const folder of folders) {
-                    folder[0].active = true;
+                this.header_state.icon.file = null;
+                this.header_state.icon.label.set_markup_with_mnemonic(format_icon_label(''));
+                this.header_state.name.text = "";
+                for (const folder of this.folder_state) {
+                    folder.toggle.active = true;
                 }
-                this.parentWidget.set_selected(0);
-            });
-
-            this.connect('map', () => {
-                this.updateProjectList();
-            });
-        }
-
-        setupPlugins(group) {
-            const script_folder = Gio.File.new_for_path(GLib.build_filenamev([GLib.get_home_dir(), '.config', 'wechsel', 'on-prj-create.d']));
-
-            if (!script_folder.query_exists(null)) {
-                return [];
-            }
-            const scripts = [...script_folder.enumerate_children("%G_FILE_ATTRIBUTE_STANDARD_NAME", Gio.FileQueryInfoFlags.NONE, null)];
-            if (scripts.length === 0) {
-                return [];
-            }
-
-            const plugins = []
-
-            for (const script of scripts) {
-                const title = script.get_name()
-                const row = new Adw.ActionRow({ title: title });
-                group.add(row)
-                const toggle = new Gtk.Switch({
-                    active: true,
-                    valign: Gtk.Align.CENTER,
-                })
-                plugins.push([title, toggle])
-                row.add_suffix(toggle)
-            }
-            
-            return plugins
-        }
-
-        setupIcon(window) {
-            const size = 128; // Size of the icon in pixels
-
-            // Add a CSS provider
-            const cssProvider = new Gtk.CssProvider();
-            cssProvider.load_from_data(`
-                .bordered-image {
-                    border: 1px solid white;
-                    border-radius: 8px;
-                    max-width: ${size}px;
-                    max-height: ${size}px;
+                for (const plugin of this.plugin_state) {
+                    plugin.toggle.active = true;
                 }
-
-                .inset {
-                    margin: 4px;
-                }
-
-                .no-hover:hover {
-                    background-color: transparent;
-                    box-shadow: none;
-                }
-            `, -1);
-
-            Gtk.StyleContext.add_provider_for_display(
-                Gdk.Display.get_default(),
-                cssProvider,
-                Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
-            );
-
-            // Create overlay
-            let overlay = new Gtk.Overlay({
-                halign: Gtk.Align.CENTER,
-                valign: Gtk.Align.CENTER,
-            });
-            overlay.add_css_class('bordered-image');
-
-            // preview label for icon
-            this.iconLabel = new Gtk.Label({
-                label: "",
-                width_request: size,
-                height_request: size,  // smaller height for label only
-                halign: Gtk.Align.CENTER,
-                hexpand: false,
+                this.header_state.parent.set_selected(0);
             });
 
-            // Image widget
-            const icon = new Gtk.Image({
-                pixel_size: size,
-            });
-            icon.set_can_focus(false);
-            icon.set_focus_on_click(false);
-            icon.set_sensitive(false);
-
-            // Stack for toggling image / label preview
-            const stack = new Gtk.Stack({
-                halign: Gtk.Align.CENTER,
-                valign: Gtk.Align.CENTER,
-                width_request: size,
-                height_request: size,
-            });
-            stack.add_named(this.iconLabel, 'label');
-            stack.add_named(icon, 'image');
-            stack.set_visible_child_name('label');  // default to label
-            overlay.set_child(stack);
-
-            // File picker button
-            const iconButton = new Gtk.Button({
-                icon_name: "document-open",
-                valign: Gtk.Align.START,
-                halign: Gtk.Align.END,
-            });
-            iconButton.add_css_class('inset');
-            iconButton.set_tooltip_text(_('Select an image for the project'));
-            overlay.add_overlay(iconButton);
-
-            // File dialog connection
-            const fileDialog = new Gtk.FileDialog();
-            iconButton.connect('clicked', () => {
-                fileDialog.open(window, null, (dialog, res) => {
-                    this.iconFile = dialog.open_finish(res);
-                    if (this.iconFile) {
-                        icon.set_from_file(this.iconFile.get_path());
-                        stack.set_visible_child_name('image');  // show image
-                    } else {
-                        stack.set_visible_child_name('label');  // fallback to label
-                    }
-                });
-            });
-
-            return overlay;
+            this.add(group);
         }
 
         updateProjectList() {
             getProjectTree.bind(this)(this._proc, (projects) => {
-                // Setup List of All Project Names 
-                this.name_list = new Gtk.StringList();
+                // clear the list
+                this.header_state.projects = new Gtk.StringList();
                 const addItem = (prj) => {
-                    this.name_list.append(prj.name)
+                    this.header_state.projects.append(prj.name)
                     for (const child of prj.children) {
                         addItem(child);
                     }
                 }
+                // recursively add all projects
                 addItem(projects);
-
-                this.parentWidget.set_model(this.name_list)
+                // update the dropdown model
+                this.header_state.parent.set_model(this.header_state.projects)
             });
         }
 
         destroy() {
             this._proc.force_exit();
             this._proc = null;
-            this.name_list = null;
+            this.header_state = null;
+            this.folder_state = null;
+            this.plugin_state = null;
+            this.window = null;
             super.destroy();
         }
     }
