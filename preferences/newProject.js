@@ -70,14 +70,12 @@ export const NewProjectPage = GObject.registerClass(
             const group = new Adw.PreferencesGroup();
             this.add(group);
 
-            const row = new Gtk.ListBoxRow({ cssClasses: ['no-hover'] });
-            group.add(row);
-
             /** @type {Gtk.Box} A horizontal wrapper box to wrap the elements, as a row can only have a single child */
             const outer_box = new Gtk.Box({
                 orientation: Gtk.Orientation.HORIZONTAL,
                 spacing: 12,
                 valign: Gtk.Align.CENTER,
+                cssClasses: ['no-hover'],
             });
 
             /** @type {Gtk.Box} Right side box containing the parent selector and name entry. Wrapped in a box to ensure proper spacing. */
@@ -117,7 +115,6 @@ export const NewProjectPage = GObject.registerClass(
                 icon.label.set_markup_with_mnemonic(format_icon_label(entry.text.substring(0, 3)))
             })
 
-            row.set_child(outer_box);
             outer_box.append(icon);
             outer_box.append(inner_box);
 
@@ -125,6 +122,8 @@ export const NewProjectPage = GObject.registerClass(
             inner_box.append(separator);
             inner_box.append(name);
             inner_box.append(this.setupCreateButton());
+
+            group.add(outer_box);
 
             return {
                 projects,
