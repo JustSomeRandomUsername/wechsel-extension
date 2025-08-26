@@ -29,34 +29,34 @@ import { getProjectTree } from '../util/utils.js';
 
 import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
-export function setupPage(newPage) {
+// export function setupPage(newPage) {
 
-    let page = new Adw.PreferencesPage({
-        title: _('New Project'),
-        icon_name: 'document-new-symbolic',
-        name: 'NewProjectPage',
-        // cssClasses: ['no-margins']
-    });
-    // no-margins
-    const group = new Adw.PreferencesGroup({
-        cssClasses: ['no-margins']
-    });
+//     let page = new Adw.PreferencesPage({
+//         title: _('New Project'),
+//         icon_name: 'document-new-symbolic',
+//         name: 'NewProjectPage',
+//         // cssClasses: ['no-margins']
+//     });
+//     // no-margins
+//     const group = new Adw.PreferencesGroup({
+//         cssClasses: ['no-margins']
+//     });
 
-    page.add(group);
+//     page.add(group);
 
-    group.add(newPage);
+//     group.add(newPage);
 
-    const createButton = new Gtk.Button({
-        label: 'Create',
-        valign: Gtk.Align.CENTER,
-        halign: Gtk.Align.END,
-        cssClasses: ['raised'],
-    });
-    group.add(createButton);
-    return page;
+//     const createButton = new Gtk.Button({
+//         label: 'Create',
+//         valign: Gtk.Align.CENTER,
+//         halign: Gtk.Align.END,
+//         cssClasses: ['raised'],
+//     });
+//     group.add(createButton);
+//     return page;
 
 
-}
+// }
 export const NewPage = GObject.registerClass(
     class NewProjectPage extends Adw.PreferencesPage {
         constructor(window) {
@@ -66,59 +66,7 @@ export const NewPage = GObject.registerClass(
                 name: 'NewProjectPage'
             });
 
-            // New Project Group
-            const customGroup = new Adw.PreferencesGroup();
-            this.add(customGroup);
-            const customRow = new Gtk.ListBoxRow();
-            customGroup.add(customRow);
-            customRow.add_css_class('no-hover');
-
-            const hbox = new Gtk.Box({
-                orientation: Gtk.Orientation.HORIZONTAL,
-                spacing: 12,
-                valign: Gtk.Align.CENTER,
-            });
-            customRow.set_child(hbox);
-
-            // Icon
-            hbox.append(this.setupIcon(window))
-            const right = new Gtk.Box({
-                orientation: Gtk.Orientation.HORIZONTAL,
-                height_request: 40,
-                spacing: 6,
-                valign: Gtk.Align.CENTER,
-                halign: Gtk.Align.START,
-            });
-            hbox.append(right);
-
-            // Setup List of All Project Names 
-            this.name_list = new Gtk.StringList();
-
-            // Parent Selector 
-            this.parentWidget = new Gtk.DropDown({
-                model: this.name_list,
-                tooltip_text: "Parent Project"
-            });
-            this.parentWidget.connect("notify::selected", () => this.updateFolderToggles());
-            right.append(this.parentWidget);
-
-
-            // Text
-            right.append(new Gtk.Label({
-                label: _('/'),
-            }));
-
-            // Name Entry
-            const name_input = new Gtk.Entry({
-                placeholder_text: 'Project name',
-            });
-            right.append(name_input);
-            // Update Icon Label in case the icon file is not set
-            name_input.connect('changed', (entry) => {
-                if (!this.iconFile) {
-                    this.iconLabel.set_markup_with_mnemonic(`<span font="42">${entry.text.substring(0, 3)}</span>`)
-                }
-            })
+            this.add(this.setupTopRow(window));
 
             this.folderGroup = new Adw.PreferencesGroup({
                 title: _('Directories'),
@@ -144,93 +92,77 @@ export const NewPage = GObject.registerClass(
             this.folders = [];
 
             const pluginGroup = new Adw.PreferencesGroup({
-                title: _('Plugins')
+                title: _('Plugins'),
+                description: _('script in the on-prj-create.d of your wechsel config directory')
             });
             this.add(pluginGroup);
-            const plugins = this.setupPlugins(pluginGroup);
-
-            const bottomGroup = new Adw.PreferencesGroup();
-
-            this.add(bottomGroup);
-            // Create Button
-            const createButton = new Gtk.Button({
-                label: 'Create',
-                valign: Gtk.Align.CENTER,
-                halign: Gtk.Align.END,
-                cssClasses: ['raised'],
-            });
-            bottomGroup.add(createButton);
-
-            createButton.connect('clicked', () => {
-                let name = name_input.text;
-
-                if (name === "") {
-                    return
-                }
-
-                let launcher = new Gio.SubprocessLauncher({
-                    flags: Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE,
-                });
-
-                const plugin_env = plugins.filter((x) => x[1].active).map((x) => x[0]).join(";")
-                // Set an environment variable
-                launcher.setenv("PLUGINS", plugin_env, true);
-
-                // Launch a subprocess
-                this._proc = launcher.spawnv(["wechsel",
-                    'new',
-                    name,
-                    '--parent', this.name_list.get_string(this.parentWidget.get_selected()),
-                    '--folders=' + folders.filter((x) => x[0].active).map((x) => x[1]).join(" "),
-                ]);
-
-                this._proc.communicate_utf8_async(null, null, (subprocess /*@type {Gio.Subprocess}*/, result /*@type {Gio.AsyncResult}*/, _data) => {
-                    const [_success, _stdout, _stderr] = this._proc.communicate_utf8_finish(result)
-                    // if (stderr !== "") {
-                    //     Main.notifyError('An error occurred while adding the project', stderr);
-                    // }
-
-                    // Copy Icon into the project
-                    if (this.iconFile) {
-                        this._proc = Gio.Subprocess.new(
-                            ["wechsel", "path", name],
-                            Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
-                        );
-
-                        this._proc.communicate_utf8_async(null, null, (subprocess /*@type {Gio.Subprocess}*/, result /*@type {Gio.AsyncResult}*/, _data) => {
-                            const [_success, stdout, _stderr] = this._proc.communicate_utf8_finish(result)
-                            // if (stderr !== "") {
-                            //     Main.notifyError('An error occurred while adding the project', stderr);
-                            // }
-                            if (stdout !== "") {
-                                let suffix = this.iconFile.get_basename().split('.')
-                                if (suffix.length > 1) {
-                                    let target = Gio.File.new_for_path(`${stdout.trim()}/icon.${suffix.pop()}`)
-                                    this.iconFile.copy(target, Gio.FileQueryInfoFlags.NONE, null, null)
-
-                                    const folder = `file://${stdout.trim()}`;
-                                    Gio.AppInfo.launch_default_for_uri(folder, null);
-
-                                }
-                            }
-                        });
-                    }
-
-                    this.updateProjectList();
-
-                });
-
-                // Reset the form
-                name_input.text = "";
-                for (const folder of folders) {
-                    folder[0].active = true;
-                }
-                this.parentWidget.set_selected(0);
-            });
+            this.plugins = this.setupPlugins(pluginGroup);
 
             this.connect('map', () => {
                 this.updateProjectList();
             });
+        }
+
+        setupTopRow(window) {
+            const group = new Adw.PreferencesGroup();
+
+            // const row = new Adw.PreferencesRow({ cssClasses: ['no-hover'] });
+            const row = new Gtk.ListBoxRow({ cssClasses: ['no-hover'] });
+
+            group.add(row);
+            // row.add_css_class('');
+
+            const outer_box = new Gtk.Box({
+                orientation: Gtk.Orientation.HORIZONTAL,
+                spacing: 12,
+                valign: Gtk.Align.CENTER,
+            });
+            row.set_child(outer_box);
+
+            // Icon
+            outer_box.append(this.setupIcon(window))
+            const right = new Gtk.Box({
+                orientation: Gtk.Orientation.HORIZONTAL,
+                height_request: 40,
+                spacing: 6,
+                valign: Gtk.Align.CENTER,
+                halign: Gtk.Align.START,
+            });
+            outer_box.append(right);
+
+            // Setup List of All Project Names 
+            this.name_list = new Gtk.StringList();
+
+            // Parent Selector 
+            this.parentWidget = new Gtk.DropDown({
+                model: this.name_list,
+                tooltip_text: "Parent Project"
+            });
+            this.parentWidget.connect("notify::selected", () => this.updateFolderToggles());
+            right.append(this.parentWidget);
+
+
+            // Slash separator Text
+            right.append(new Gtk.Label({
+                label: _('/'),
+            }));
+
+            // Name Entry
+            const name_input = new Gtk.Entry({
+                placeholder_text: 'Project name',
+            });
+            right.append(name_input);
+
+            right.append(this.setupCreateButton());
+
+            // Update Icon Label in case the icon file is not set
+            name_input.connect('changed', (entry) => {
+                if (!this.iconFile) {
+                    this.iconLabel.set_markup_with_mnemonic(`<span font="42">${entry.text.substring(0, 3)}</span>`)
+                }
+            });
+
+            return group;
         }
 
         setupPlugins(group) {
@@ -290,6 +222,10 @@ export const NewPage = GObject.registerClass(
                     box-shadow: none;
                 }
 
+                .no-hover:first-child {
+                    background-color: transparent;
+                }
+
                 .no-margins {
                     margin: 0 0 0 0;
                     padding: 0 0 0 0;
@@ -310,10 +246,11 @@ export const NewPage = GObject.registerClass(
             let overlay = new Gtk.Overlay({
                 halign: Gtk.Align.CENTER,
                 valign: Gtk.Align.CENTER,
-                tooltip_text: "Project Icon"
+                tooltip_text: "Project Icon",
+                cssClasses: ['card'],
             });
             // This gives the icon widget the correct background color
-            overlay.add_css_class('card');
+            // overlay.add_css_class('card');
 
 
             // preview label for icon
@@ -455,6 +392,84 @@ export const NewPage = GObject.registerClass(
 
                 this.updateFolderToggles();
             }, {}, true);
+        }
+
+        setupCreateButton(name_input) {
+            const createButton = new Gtk.Button({
+                label: 'Create',
+                valign: Gtk.Align.CENTER,
+                halign: Gtk.Align.END,
+                cssClasses: ['raised'],
+            });
+
+            createButton.connect('clicked', () => {
+                let name = name_input.text;
+
+                if (name === "") {
+                    return
+                }
+
+                let launcher = new Gio.SubprocessLauncher({
+                    flags: Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE,
+                });
+
+                const plugin_env = this.plugins.filter((x) => x[1].active).map((x) => x[0]).join(";")
+                // Set an environment variable
+                launcher.setenv("PLUGINS", plugin_env, true);
+
+                // Launch a subprocess
+                this._proc = launcher.spawnv(["wechsel",
+                    'new',
+                    name,
+                    '--parent', this.name_list.get_string(this.parentWidget.get_selected()),
+                    '--folders=' + this.folders.filter((x) => x[0].active).map((x) => x[1]).join(" "),
+                ]);
+
+                this._proc.communicate_utf8_async(null, null, (subprocess /*@type {Gio.Subprocess}*/, result /*@type {Gio.AsyncResult}*/, _data) => {
+                    const [_success, _stdout, _stderr] = this._proc.communicate_utf8_finish(result)
+                    if (stderr !== "") {
+                        console.log('An error occurred while adding the project', stderr);
+                    }
+
+                    // Copy Icon into the project
+                    if (this.iconFile) {
+                        this._proc = Gio.Subprocess.new(
+                            ["wechsel", "path", name],
+                            Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
+                        );
+
+                        this._proc.communicate_utf8_async(null, null, (subprocess /*@type {Gio.Subprocess}*/, result /*@type {Gio.AsyncResult}*/, _data) => {
+                            const [_success, stdout, _stderr] = this._proc.communicate_utf8_finish(result)
+                            if (stderr !== "") {
+                                console.log('An error occurred while adding the project', stderr);
+                            }
+                            if (stdout !== "") {
+                                let suffix = this.iconFile.get_basename().split('.')
+                                if (suffix.length > 1) {
+                                    let target = Gio.File.new_for_path(`${stdout.trim()}/icon.${suffix.pop()}`)
+                                    this.iconFile.copy(target, Gio.FileQueryInfoFlags.NONE, null, null)
+
+                                    const folder = `file://${stdout.trim()}`;
+                                    Gio.AppInfo.launch_default_for_uri(folder, null);
+
+                                }
+                            }
+                        });
+                    }
+
+                    this.updateProjectList();
+
+                });
+
+                // Reset the form
+                name_input.text = "";
+                // for (const folder of this.folders) {
+                //     folder[0].active = true;
+                // }
+                this.parentWidget.set_selected(0);
+            });
+
+            return createButton;
         }
 
         destroy() {
