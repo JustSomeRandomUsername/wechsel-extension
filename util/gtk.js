@@ -50,6 +50,10 @@ export const ToggleRow = GObject.registerClass(class ToggleRow extends Adw.Actio
 export const ToggleBox = GObject.registerClass(class ToggleBox extends Gtk.Box {
     constructor(label, args) {
         super({ ...args, orientation: Gtk.Orientation.HORIZONTAL });
+        /**
+        * Reference to the suffix toggle switch
+        * @type {Gtk.Switch}
+        */
         this.toggle = new Gtk.Switch({
             valign: Gtk.Align.CENTER,
         });

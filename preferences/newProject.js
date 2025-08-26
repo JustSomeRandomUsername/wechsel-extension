@@ -43,10 +43,12 @@ export const NewProjectPage = GObject.registerClass(
 
             /** @type {{projects: Gtk.StringList, parent: Gtk.DropDown, name: Gtk.Entry, icon: IconSelector}} references to the main selection elements */
             this.header_state = this.addHeaderGroup();
-            /** @type {Array<{name: string, toggle: Gtk.Switch, row: number}>} list of folder states */
-            this.folder_state = this.addFolderGroup();
+            this.addFolderGroup();
             /** @type {Array<{name: string, toggle: Gtk.Switch}>} list of plugin states */
             this.plugin_state = this.addPluginGroup();
+
+            /** @type {Array<{name: string, toggle: Gtk.Switch, row: number}>} list of folder states */
+            this.folder_state = [];
 
             this.connect('map', () => {
                 this.updateProjectList();
@@ -134,7 +136,6 @@ export const NewProjectPage = GObject.registerClass(
 
         /**
          * Adds a group with toggleable rows for each standard folder
-         * @returns {Array<{name: string, toggle: Gtk.Switch}>} reference to folder states
          */
         addFolderGroup() {
             /** @type {Adw.PreferencesGroup} Group for folder toggles */
@@ -143,6 +144,7 @@ export const NewProjectPage = GObject.registerClass(
                 description: _('These directories will be inherited from the parent project.'),
             });
 
+            /** @type {Gtk.Grid} Grid for folder toggles */
             this.grid = new Gtk.Grid({
                 column_spacing: 12,
                 row_spacing: 6,
@@ -157,7 +159,6 @@ export const NewProjectPage = GObject.registerClass(
             this.folderGroup.add(rowWrapper);
 
             this.add(this.folderGroup);
-            return [];
         }
 
         /**
@@ -291,7 +292,7 @@ export const NewProjectPage = GObject.registerClass(
                 return;
             }
             for (let folder of this.folder_state) {
-                folder.toggle.active = parent_folders.includes(folder[1]);
+                folder.toggle.active = parent_folders.includes(folder.name);
             }
         }
 
@@ -305,7 +306,6 @@ export const NewProjectPage = GObject.registerClass(
                 this.folderMap = {};
                 const addItem = (prj) => {
                     this.header_state.projects.append(prj.name)
-                    console.log(prj);
                     prj.folders.forEach(folder => {
                         folder_names.add(folder);
                     });
@@ -324,7 +324,7 @@ export const NewProjectPage = GObject.registerClass(
                 // update the dropdown model
                 this.header_state.parent.set_model(this.header_state.projects);
                 this.header_state.parent.set_selected(active_index);
-
+                console.log("test");
 
                 // Clear the folder list
                 for (let folder of this.folder_state) {
@@ -334,13 +334,12 @@ export const NewProjectPage = GObject.registerClass(
                 this.folder_state = [];
                 let i = 0;
                 for (let folder of folder_names) {
-                    let box = new ToggleBox(folder);
+                    const box = new ToggleBox(folder);
 
                     const row = Math.floor(i / 2);
+                    this.grid.attach(box, i % 2, row, 1, 1);
 
                     this.folder_state.push({ toggle: box.toggle, name: folder, row: row });
-
-                    this.grid.attach(box, i % 2, row, 1, 1);
                     i++;
                 }
 
