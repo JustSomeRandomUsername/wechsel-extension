@@ -112,7 +112,7 @@ export const NewProjectPage = GObject.registerClass(
             // Update Icon Label in case the icon file is not set
             name.connect('changed', (entry) => {
                 if (icon.file) return;
-                icon.label.set_markup_with_mnemonic(format_icon_label(entry.text.substring(0, 3)))
+                icon.label.set_markup(format_icon_label(entry.text.substring(0, 3)))
             })
 
             outer_box.append(icon);
@@ -196,10 +196,32 @@ export const NewProjectPage = GObject.registerClass(
         setupCreateButton() {
             /** @type {Gtk.Button} The create button */
             const button = new Gtk.Button({
-                label: 'Create',
+                // label: 'Create',
                 valign: Gtk.Align.CENTER,
                 halign: Gtk.Align.END,
+                // height_request: 60
             });
+
+            const box = new Gtk.Box({
+                orientation: Gtk.Orientation.VERTICAL,
+                spacing: 12,
+                valign: Gtk.Align.CENTER,
+                cssClasses: ['no-hover'],
+            });
+
+
+            console.log(Gtk.IconSize);
+            const icon = new Gtk.Image({
+                icon_name: 'folder-new-symbolic',
+                icon_size: Gtk.IconSize.LARGE,
+            });
+            const label = new Gtk.Label({
+                label: "",
+            })
+            label.set_markup('<span font="12">Create</span>');
+            button.set_child(box);
+            box.append(icon);
+            box.append(label);
 
             button.connect('clicked', () => {
                 /** @type {string} The project name */
@@ -267,7 +289,7 @@ export const NewProjectPage = GObject.registerClass(
 
                 // Reset the form
                 this.header_state.icon.file = null;
-                this.header_state.icon.label.set_markup_with_mnemonic(format_icon_label(''));
+                this.header_state.icon.label.set_markup(format_icon_label(''));
                 this.header_state.name.text = "";
                 // for (const folder of this.folder_state) {
                 //     folder.toggle.active = true;
