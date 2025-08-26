@@ -35,7 +35,7 @@ export const NewProjectPage = GObject.registerClass(
         constructor(window) {
             super({
                 title: _('New Project'),
-                icon_name: 'document-new-symbolic',
+                icon_name: 'folder-new-symbolic',
                 name: 'NewProjectPage'
             });
 
@@ -121,7 +121,7 @@ export const NewProjectPage = GObject.registerClass(
             inner_box.append(parent);
             inner_box.append(separator);
             inner_box.append(name);
-            inner_box.append(this.setupCreateButton());
+            outer_box.append(this.setupCreateButton());
 
             group.add(outer_box);
 
@@ -199,7 +199,6 @@ export const NewProjectPage = GObject.registerClass(
                 label: 'Create',
                 valign: Gtk.Align.CENTER,
                 halign: Gtk.Align.END,
-                cssClasses: ['raised'],
             });
 
             button.connect('clicked', () => {

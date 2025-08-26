@@ -1,7 +1,5 @@
 import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
-import Gio from 'gi://Gio';
-import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 
 import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
@@ -11,7 +9,7 @@ export const EditProjectPage = GObject.registerClass(
         constructor() {
             super({
                 title: _('Edit Project'),
-                icon_name: 'edit-symbolic',
+                icon_name: 'document-edit-symbolic',
                 name: 'EditProjectPage'
             });
 
@@ -23,7 +21,7 @@ export const EditProjectPage = GObject.registerClass(
                 wrap: true,
                 justify: Gtk.Justification.FILL,
             }));
-            
+
             const folders = new Adw.PreferencesGroup({
                 title: _('Folders')
             });
