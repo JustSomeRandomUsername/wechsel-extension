@@ -219,36 +219,8 @@ export const NewProjectPage = GObject.registerClass(
                 label: 'Create',
                 valign: Gtk.Align.CENTER,
                 halign: Gtk.Align.END,
-                // height_request: 60
                 cssClasses: ['suggested-action'],
             });
-
-            // const box = new Gtk.Box({
-            //     orientation: Gtk.Orientation.VERTICAL,
-            //     // spacing: 12,
-            //     valign: Gtk.Align.CENTER,
-            //     cssClasses: ['no-hover'],
-            // });
-
-
-            // const icon = new Gtk.Image({
-            //     icon_name: 'folder-new-symbolic',
-            //     icon_size: Gtk.IconSize.LARGE,
-            // });
-            // const label = new Gtk.Label({
-            //     label: "Create",
-            // })
-            // const label2 = new Gtk.Label({
-            //     label: "Project",
-            //     cssClasses: ['dim-label']
-            // })
-            // label.set_markup('<span font="12">Create</span>');
-            // label2.set_markup('<span font="9">Project</span>');
-
-            // button.set_child(box);
-            // box.append(icon);
-            // box.append(label);
-            // box.append(label2);
 
             button.connect('clicked', () => {
                 /** @type {string} The project name */
