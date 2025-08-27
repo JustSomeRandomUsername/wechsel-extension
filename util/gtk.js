@@ -173,6 +173,36 @@ export const IconSelector = GObject.registerClass(class IconSelector extends Gtk
     }
 });
 
+export const TextBlock = GObject.registerClass(class TextBlock extends Adw.PreferencesGroup {
+    constructor(title, description, args) {
+        super({
+            ...args,
+        });
+
+        const box = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, valign: Gtk.Align.START, spacing: 10 });
+
+        const title_box = new Gtk.Box({ orientation: Gtk.Orientation.HORIZONTAL });
+        const title_label = new Gtk.Label({ valign: Gtk.Align.START });
+        title_label.set_markup(`<span gravity="west" weight="bold" font="18">${title}</span>`);
+
+        title_box.append(title_label);
+        box.append(title_box);
+        box.append(new Gtk.Separator());
+        box.append(new Gtk.Label({
+            label: _(description),
+            wrap: true,
+            justify: Gtk.Justification.FILL,
+        }));
+
+        this.add(box);
+    }
+
+    destroy() {
+        this.toggle = null;
+        super.destroy();
+    }
+});
+
 export function format_icon_label(msg) {
     return `<span font="42">${msg}</span>`;
 }
