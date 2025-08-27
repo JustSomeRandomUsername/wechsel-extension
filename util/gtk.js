@@ -27,26 +27,6 @@ import GObject from 'gi://GObject';
 
 import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
-export const ToggleRow = GObject.registerClass(class ToggleRow extends Adw.ActionRow {
-    constructor(args) {
-        super(args);
-        /**
-         * Reference to the suffix toggle switch
-         * @type {Gtk.Switch}
-         */
-        this.toggle = new Gtk.Switch({
-            active: args.active | true,
-            valign: Gtk.Align.CENTER,
-        });
-        this.add_suffix(this.toggle);
-    }
-
-    destroy() {
-        this.toggle = null;
-        super.destroy();
-    }
-});
-
 export const ToggleBox = GObject.registerClass(class ToggleBox extends Gtk.Box {
     constructor(label, args) {
         super({ ...args, orientation: Gtk.Orientation.HORIZONTAL });

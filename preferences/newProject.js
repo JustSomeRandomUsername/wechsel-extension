@@ -25,8 +25,7 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 
 import { getProjectTree } from '../util/utils.js';
-import { ToggleRow, IconSelector, format_icon_label, ToggleBox } from '../util/gtk.js';
-
+import { IconSelector, format_icon_label, ToggleBox } from '../util/gtk.js';
 
 import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
@@ -143,6 +142,10 @@ export const NewProjectPage = GObject.registerClass(
                 description: _('These directories will be inherited from the parent project.'),
             });
 
+            const row = new Gtk.ListBoxRow({
+                cssClasses: ["card", "folderRow"]
+            });
+
             /** @type {Gtk.Grid} Grid for folder toggles */
             this.grid = new Gtk.Grid({
                 column_spacing: 12,
@@ -150,12 +153,9 @@ export const NewProjectPage = GObject.registerClass(
                 column_homogeneous: true,
             });
 
-            const rowWrapper = new Gtk.ListBoxRow({
-                cssClasses: ["card", "folderRow"]
-            });
-            rowWrapper.set_child(this.grid);
-            rowWrapper.set_activatable(false);  // Don’t highlight row on click
-            this.folderGroup.add(rowWrapper);
+            row.set_child(this.grid);
+            row.set_activatable(false);  // Don’t highlight row on click
+            this.folderGroup.add(row);
 
             this.add(this.folderGroup);
         }
@@ -181,13 +181,32 @@ export const NewProjectPage = GObject.registerClass(
 
             /** @type {Array<{name: string, toggle: Gtk.Switch}>} reference to plugin states */
             const plugins = [];
+
+            const row_wrapper = new Gtk.ListBoxRow({//TODO check if these are necessary
+                cssClasses: ["card", "folderRow"]
+            });
+
+            /** @type {Gtk.Grid} Grid for folder toggles */
+            const grid = new Gtk.Grid({
+                column_spacing: 12,
+                row_spacing: 6,
+                column_homogeneous: true,
+            });
+
+            let i = 0;
             for (const script of scripts) {
-                const row = new ToggleRow({
-                    title: script.get_name()
-                });
-                group.add(row);
-                plugins.push({ name: script.get_name(), toggle: row.toggle });
+                const box = new ToggleBox(script.get_name());
+
+                const row = Math.floor(i / 2);
+                grid.attach(box, i % 2, row, 1, 1);
+                console.log(i, script.get_name(), i % 2, row)
+                plugins.push({ name: script.get_name(), toggle: box.toggle });
+                i++;
             }
+
+            row_wrapper.set_child(grid);
+            row_wrapper.set_activatable(false);  // Don’t highlight row on click
+            group.add(row_wrapper);
 
             this.add(group);
             return plugins;
@@ -210,7 +229,6 @@ export const NewProjectPage = GObject.registerClass(
             });
 
 
-            console.log(Gtk.IconSize);
             const icon = new Gtk.Image({
                 icon_name: 'folder-new-symbolic',
                 icon_size: Gtk.IconSize.LARGE,
@@ -344,7 +362,6 @@ export const NewProjectPage = GObject.registerClass(
                 // update the dropdown model
                 this.header_state.parent.set_model(this.header_state.projects);
                 this.header_state.parent.set_selected(active_index);
-                console.log("test");
 
                 // Clear the folder list
                 for (let folder of this.folder_state) {
