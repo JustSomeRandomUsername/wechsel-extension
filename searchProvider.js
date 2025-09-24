@@ -192,7 +192,7 @@ export class SearchProvider {
             const cancelledId = cancellable.connect(
                 () => reject(Error('Search Cancelled')));
 
-            const projects = this.projects.filter((prj) => terms.some((term) => prjtoLowerCase().includes(term.toLowerCase())))
+            const projects = this.projects.filter((prj) => terms.some((term) => prj.toLowerCase().includes(term.toLowerCase())))
 
             cancellable.disconnect(cancelledId);
             if (!cancellable.is_cancelled())
