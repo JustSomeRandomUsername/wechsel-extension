@@ -22,6 +22,7 @@ import { ExtensionPreferences, gettext as _ } from 'resource:///org/gnome/Shell/
 
 import * as GeneralPrefs from './preferences/generalSettings.js';
 import * as NewPrefs from './preferences/newProject.js';
+import * as EditPrefs from './preferences/editProject.js';
 
 
 const SettingsKey = {
@@ -36,10 +37,12 @@ export default class Preferences extends ExtensionPreferences {
         const settings = this.getSettings();
 
         const generalPage = new GeneralPrefs.GeneralPage(settings, SettingsKey);
-        const new_prj_page = new NewPrefs.NewPage(window);
+        const new_prj_page = new NewPrefs.NewProjectPage(window);
+        const edit_prj_page = new EditPrefs.EditProjectPage();
 
         window.add(generalPage);
         window.add(new_prj_page);
+        window.add(edit_prj_page);
 
         // Make sure the window doesn't outlive the settings object
         window._settings = settings;

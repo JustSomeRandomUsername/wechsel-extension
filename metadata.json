@@ -1,6 +1,6 @@
 {
   "name": "Wechsel",
-  "description": "Organize your computer by replacing user folders with symlinks to project folders.\nThis extension is the user interface for the wechsel cli tool.\n\nWechsel is a simple tool that helps you by creating individual Download, Desktop, ... folders for each project.\nIt replaces the original folders with symlinks to the folders of the current active project.\nLike this the random files you download, will be placed in the Download folder they belong to.\n\nThis Extension depends on the wechsel cli tool, which you can find here: https://github.com/JustSomeRandomUsername/wechsel",
+  "description": "Organize your Computer by creating a set of home folder subdirectories per project.\nThis extension is the user interface for the wechsel cli tool.\n\nWechsel is a simple tool that helps you by creating individual Download, Desktop, ... folders for each project.\nIt replaces the original folders with symlinks to the folders of the current active project.\nLike this the random files you download, will be placed in the Download folder they belong to.\n\nThis Extension depends on the wechsel cli tool, which you can find here: https://github.com/JustSomeRandomUsername/wechsel",
   "uuid": "wechsel@transistor.local",
   "settings-schema": "org.gnome.shell.extensions.wechsel",
   "shell-version": [
