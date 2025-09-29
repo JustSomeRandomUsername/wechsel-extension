@@ -133,7 +133,6 @@ export function callChangeProject(project) {
  */
 export function checkInstallation(proc, onError) {
     // Check if Wechsel is installed
-    let good_version = true;
     let stderr;
     try {
         proc = Gio.Subprocess.new(
@@ -143,17 +142,13 @@ export function checkInstallation(proc, onError) {
         const [_success, stdout, new_stderr] = proc.communicate_utf8(null, null);
         stderr = new_stderr
         if (!stdout || stdout.match(/.*0.2.\d+/) === null) {
-            onError('The installed wechsel version is too old for this version of the extension, this extension requires wechsel > 0.2', stderr);
-            good_version = false
+            onError('The installed wechsel version is too old.', 'The installed wechsel version is too old for this version of the extension, this extension requires wechsel > 0.2');
+            return false
         }
 
     } catch {
-        good_version = false
-    };
-
-    if (!good_version) {
-        onError('An error occurred while checking the wechsel version', stderr);
+        onError('An error occurred while checking the wechsel version.', 'This likely means that the wechsel cli programm is not installed, install instruction can be found at `https://github.com/JustSomeRandomUsername/wechsel`. If you just installed it and are still getting this error make sure you can call wechsel from the terminal and try loging out and in again to restart your gnome session');
         return false
-    }
+    };
     return true
 }
