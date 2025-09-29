@@ -200,7 +200,6 @@ export const NewProjectPage = GObject.registerClass(
 
                 const row = Math.floor(i / 2);
                 grid.attach(box, i % 2, row, 1, 1);
-                console.log(i, script.get_name(), i % 2, row)
                 plugins.push({ name: script.get_name(), toggle: box.toggle });
                 i++;
             }
@@ -256,7 +255,7 @@ export const NewProjectPage = GObject.registerClass(
                 this._proc.communicate_utf8_async(null, null, (_subprocess, result /*@type {Gio.AsyncResult}*/, _data) => {
                     const [_success, stdout, stderr] = this._proc.communicate_utf8_finish(result);
                     if (stderr !== "") {
-                        console.log('An error occurred while adding the project', stderr);
+                        console.error('An error occurred while adding the project', stderr);
                     }
                     const icon_file = this.header_state.icon.file;
                     if (icon_file) {
@@ -268,7 +267,7 @@ export const NewProjectPage = GObject.registerClass(
                         this._proc.communicate_utf8_async(null, null, (_subprocess, result /*@type {Gio.AsyncResult}*/, _data) => {
                             const [_success, stdout, stderr] = this._proc.communicate_utf8_finish(result)
                             if (stderr !== "") {
-                                console.log('An error occurred while adding the project', stderr);
+                                console.error('An error occurred while adding the project', stderr);
                             }
                             if (stdout == "") return;
 
@@ -362,7 +361,7 @@ export const NewProjectPage = GObject.registerClass(
                 }
 
                 this.updateFolderToggles();
-            }, {}, true);
+            }, (_1, _2) => { console.error("An error occured while updating the project list. Its possible that the wechsel cli version is out of date.") }, true);
         }
 
         destroy() {

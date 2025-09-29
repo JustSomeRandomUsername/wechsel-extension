@@ -133,7 +133,7 @@ export const GeneralPage = GObject.registerClass(
 
                     const folder = `file://${prj.path}`;
                     Gio.AppInfo.launch_default_for_uri(folder, null);
-                });
+                }, (_1, _2) => { console.error("An error occured while getting the current projects directory. Check that wechsel cli is installed and up to date.") });
             });
             buttonGroup.add(openProjectFolder)
             this.add(buttonGroup);
