@@ -141,9 +141,14 @@ export function checkInstallation(proc, onError) {
         );
         const [_success, stdout, new_stderr] = proc.communicate_utf8(null, null);
         stderr = new_stderr
-        if (!stdout || stdout.match(/.*0.2.\d+/) === null) {
-            onError('The installed wechsel version is too old.', 'The installed wechsel version is too old for this version of the extension, this extension requires wechsel > 0.2');
-            return false
+        if (stdout) {
+            const matches = stdout.match(/.*0.(\d+).(\d+)/)
+            if (matches === null || matches[1] < 2 || matches[2] < 2) {
+                onError('The installed wechsel version is too old.', 'The installed wechsel version is too old for this version of the extension, this extension requires wechsel > 0.2.2');
+                return false
+            }
+        } else {
+            throw true
         }
 
     } catch {
