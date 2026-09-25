@@ -262,13 +262,13 @@ const Foldout = GObject.registerClass(
                 });
 
                 // close menu when left arrow key is pressed on child
-                item.connect('key-press-event', (_actor, event) => {
-                    let symbol = event.get_key_symbol();
+                const keyController = new Clutter.EventControllerKey();
+                keyController.connect('key-pressed', (_controller, symbol) => {
                     if (symbol === Clutter.KEY_Left && !item.unfolded && !this.is_root) {
                         this.close();
                         // focus this
                         this.grab_key_focus();
-                        return Clutter.EVENT_STOP;
+                        return true;
                     }
                     // handle up down focus
                     if (symbol === Clutter.KEY_Up) {
@@ -278,7 +278,7 @@ const Foldout = GObject.registerClass(
                         } else {
                             this.grab_key_focus();
                         }
-                        return Clutter.EVENT_STOP;
+                        return true;
                     }
                     if (symbol === Clutter.KEY_Down) {
                         let next = item.get_next_sibling();
@@ -287,10 +287,11 @@ const Foldout = GObject.registerClass(
                         } else {
                             this.get_next_sibling().grab_key_focus();
                         }
-                        return Clutter.EVENT_STOP;
+                        return true;
                     }
-                    return Clutter.EVENT_PROPAGATE;
+                    return false;
                 });
+                item.add_controller(keyController);
             }
         }
 
