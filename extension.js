@@ -261,14 +261,15 @@ const Foldout = GObject.registerClass(
                     }
                 });
 
-                // close menu when left arrow key is pressed on child
-                const keyController = new Clutter.EventControllerKey();
-                keyController.connect('key-pressed', (_controller, symbol) => {
+              // close menu when left arrow key is pressed on child
+              const keyController = new Clutter.KeyController();
+              keyController.connect('key-press', () => {
+                   const [, symbol] = keyController.get_key();
                     if (symbol === Clutter.KEY_Left && !item.unfolded && !this.is_root) {
                         this.close();
                         // focus this
                         this.grab_key_focus();
-                        return true;
+                        return Clutter.EVENT_STOP;
                     }
                     // handle up down focus
                     if (symbol === Clutter.KEY_Up) {
@@ -278,7 +279,7 @@ const Foldout = GObject.registerClass(
                         } else {
                             this.grab_key_focus();
                         }
-                        return true;
+                        return Clutter.EVENT_STOP;
                     }
                     if (symbol === Clutter.KEY_Down) {
                         let next = item.get_next_sibling();
@@ -287,11 +288,11 @@ const Foldout = GObject.registerClass(
                         } else {
                             this.get_next_sibling().grab_key_focus();
                         }
-                        return true;
+                        return Clutter.EVENT_STOP;
                     }
-                    return false;
+                    return Clutter.EVENT_PROPAGATE;
                 });
-                item.add_controller(keyController);
+                item.add_action(keyController);
             }
         }
 
@@ -390,7 +391,7 @@ const Indicator = GObject.registerClass(
              * @type {import('resource:///org/gnome/shell/ui/popupMenu.js').PopupMenu} */
             this.menu;
 
-            /** 
+            /**
              * reference to the extension object
              * @type {WechselExtension} */
             this.extension = extension;
@@ -414,7 +415,7 @@ const Indicator = GObject.registerClass(
                 this.active_project = '--Error--'
             }
 
-            /** 
+            /**
              * Text label inside the button indicator
              * @type {St.Label}
              */
@@ -479,10 +480,10 @@ const Indicator = GObject.registerClass(
 
             /**
              * Inserts all children of a project into the menu
-             * 
+             *
              * @param {import('./util/utils.js').ProjectTree} project
              * @param {PopupMenu.PopupMenuSection | PopupMenu.PopupSubMenuMenuItem} menu parent object to insert the children into
-             * 
+             *
              * @returns {boolean}
              */
             const buildProjectTree = (
