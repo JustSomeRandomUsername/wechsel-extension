@@ -58,9 +58,12 @@ export class SearchProvider {
 
     }
 
-    update_project_list(projects) {
-        this.icons = getIcons(projects)
-        this.projects = Array.from(this.icons.keys())
+  update_project_list(projects) {
+
+    getIcons(projects).then((icons) => {
+      this.icons = icons;
+        })
+      this.projects = Array.from(this.icons.keys())
     }
     /**
      * The unique ID of the provider.

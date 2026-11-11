@@ -35,10 +35,10 @@ import Gio from 'gi://Gio';
 */
 
 /**
- * 
- * @param {*} proc 
- * @param {function(ProjectTree, string): void} lambda 
- * @param {function(string, string): void} onError 
+ *
+ * @param {*} proc
+ * @param {function(ProjectTree, string): void} lambda
+ * @param {function(string, string): void} onError
  */
 export function getProjectTree(proc, lambda, onError = (_1, _2) => { }, request_folders = false) {
     let cmd = ["wechsel", 'tree'];
@@ -73,15 +73,16 @@ export function getProjectTree(proc, lambda, onError = (_1, _2) => { }, request_
  * @param {string[]} extensions - extension to search for
  * @return {string | undefined}
  */
-function createIconWithFallback(basePath, file_stem, extensions = ['txt', 'svg', 'png', 'jpg', 'jpeg', 'gif']) {
+async function createIconWithFallback(basePath, file_stem, extensions = ['txt', 'svg', 'png', 'jpg', 'jpeg', 'gif']) {
     for (let ext of extensions) {
         for (let i = 0; i < 2; i++) {
             let filePath = `${basePath}/${i === 1 ? "." : ""}${file_stem}.${ext}`;
             let file = Gio.File.new_for_path(filePath);
 
             if (file.query_exists(null)) {
-                if (ext === 'txt') {
-                    const [, contents, _etag] = file.load_contents(null);
+              if (ext === 'txt') {
+                  const [contents, _etag] = await file.load_contents_async(null);
+                    // const [, contents, _etag] = file.load_contents(null);
                     const decoder = new TextDecoder('utf-8');
                     return decoder.decode(contents).trim();
                 }
@@ -93,29 +94,29 @@ function createIconWithFallback(basePath, file_stem, extensions = ['txt', 'svg',
 }
 
 /**
- * 
- * @param {ProjectTree} project_tree 
- * @param {Config} config 
+ *
+ * @param {ProjectTree} project_tree
+ * @param {Config} config
  * @returns {Map<string, string>}
  */
-export function getIcons(project_tree) {
+export async function getIcons(project_tree) {
     /**@type {Map<string, string>} */
     let result = new Map()
 
     /** @type {function(ProjectTree, string)} */
-    let recurse = (project) => {
-        result.set(project.name, createIconWithFallback(project.path, "icon"))
+    let recurse = async (project) => {
+        result.set(project.name, await createIconWithFallback(project.path, "icon"))
         for (const child of project.children) {
             recurse(child)
         }
     }
 
-    recurse(project_tree)
+    await recurse(project_tree)
     return result
 }
 /**
- * 
- * @param {string} project 
+ *
+ * @param {string} project
  */
 export function callChangeProject(project) {
     return Gio.Subprocess.new(
@@ -125,9 +126,9 @@ export function callChangeProject(project) {
 }
 
 /**
- * 
- * @param {*} proc 
- * @param {function(string, string): void} onError 
+ *
+ * @param {*} proc
+ * @param {function(string, string): void} onError
  * @returns {boolean}
 
  */

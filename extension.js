@@ -426,7 +426,7 @@ const Indicator = GObject.registerClass(
             this.add_child(this.panelIcon);
 
 
-            this.menu.connect('open-state-changed', (
+            this.state_changed_handler = this.menu.connect('open-state-changed', (
                 _menu,
             /** updated open state @type {boolean} */ open
             ) => {
@@ -546,11 +546,13 @@ const Indicator = GObject.registerClass(
             }
         }
 
-        destroy() {
-            this.item_projects_section.removeAll();
-            this._proc?.force_exit();
-            this.searchProvider = null;
-            super.destroy()
+      destroy() {
+        this.menu.disconnect(this.state_changed_handler);
+        this.state_changed_handler = null;
+        this.item_projects_section.removeAll();
+        this._proc?.force_exit();
+        this.searchProvider = null;
+        super.destroy()
         }
     });
 
@@ -559,14 +561,14 @@ function _switchInputSource(display, window, event, binding) {
         return
     }
     getProjectTree.bind(this)(this._proc, (projects, active) => {
-        let icons = getIcons(projects)
-
+      getIcons(projects).then((icons) => {
         let _switcherPopup = new ProjectSwitcherPopup(this._keybindingAction, this._keybindingActionBackwards, this._indicator, binding, projects, icons, active);
         _switcherPopup.connect('destroy', () => {
             _switcherPopup = null;
         });
         if (!_switcherPopup.show(binding.get_name().endsWith("backward"), binding.get_name(), binding.get_mask()))
             _switcherPopup.fadeAndDestroy();
+        })
     }, Main.notifyError)
 
 }
@@ -646,6 +648,7 @@ export default class WechselExtension extends Extension {
 
 
         this.exportedObject.unexport();
+        this.exportedObject = null;
 
         if (this.ownerId) {
             Gio.bus_unown_name(this.ownerId);
