@@ -25,7 +25,8 @@ import { callChangeProject, getIcons, getProjectTree } from './util/utils.js';
 export class SearchProvider {
     constructor(extension) {
         this._extension = extension;
-
+        this.projects = [];
+        this.icons = new Map();
 
         // let app = Gio.AppInfo.create_from_commandline(
         //     "gnome-extensions prefs wechsel@transistor.local", // Command to launch your app
@@ -58,12 +59,11 @@ export class SearchProvider {
 
     }
 
-  update_project_list(projects) {
-
-    getIcons(projects).then((icons) => {
-      this.icons = icons;
+    update_project_list(projects) {
+        getIcons(projects).then((icons) => {
+            this.icons = icons;
+            this.projects = Array.from(this.icons.keys())
         })
-      this.projects = Array.from(this.icons.keys())
     }
     /**
      * The unique ID of the provider.
