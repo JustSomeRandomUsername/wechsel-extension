@@ -36,21 +36,23 @@ import Gio from 'gi://Gio';
 
 /**
  *
- * @param {*} proc
  * @param {function(ProjectTree, string): void} lambda
  * @param {function(string, string): void} onError
  */
-export function getProjectTree(proc, lambda, onError = (_1, _2) => { }, request_folders = false) {
+export function getProjectTree(procs, lambda, onError = (_1, _2) => { }, request_folders = false) {
     let cmd = ["wechsel", 'tree'];
     if (request_folders) {
         cmd.push("--folders");
     }
+    let proc;
     try {
         proc = Gio.Subprocess.new(
             cmd,
             Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
         );
+        procs.push(proc);
     } catch {
+        onError('Calling the wechsel programm failed (`wechsel tree`)')
         return
     }
     proc.communicate_utf8_async(null, null, (subprocess /*@type {Gio.Subprocess}*/, result /*@type {Gio.AsyncResult}*/, _data) => {
@@ -62,10 +64,14 @@ export function getProjectTree(proc, lambda, onError = (_1, _2) => { }, request_
             let data
             try {
                 data = JSON.parse(stdout)
-            } catch { return }
+            } catch {
+                onError('Parsing the output of `wechsel tree` failed')
+                return
+            }
             lambda(data.tree, data.active)
         }
     });
+    return
 }
 
 /**
@@ -80,8 +86,8 @@ async function createIconWithFallback(basePath, file_stem, extensions = ['txt', 
             let file = Gio.File.new_for_path(filePath);
 
             if (file.query_exists(null)) {
-              if (ext === 'txt') {
-                  const [contents, _etag] = await file.load_contents_async(null);
+                if (ext === 'txt') {
+                    const [contents, _etag] = await file.load_contents_async(null);
                     // const [, contents, _etag] = file.load_contents(null);
                     const decoder = new TextDecoder('utf-8');
                     return decoder.decode(contents).trim();
@@ -106,9 +112,7 @@ export async function getIcons(project_tree) {
     /** @type {function(ProjectTree, string)} */
     let recurse = async (project) => {
         result.set(project.name, await createIconWithFallback(project.path, "icon"))
-        for (const child of project.children) {
-            recurse(child)
-        }
+        await Promise.all(project.children.map(recurse))
     }
 
     await recurse(project_tree)
@@ -132,14 +136,16 @@ export function callChangeProject(project) {
  * @returns {boolean}
 
  */
-export function checkInstallation(proc, onError) {
+export function checkInstallation(procs, onError) {
     // Check if Wechsel is installed
     let stderr;
     try {
-        proc = Gio.Subprocess.new(
+        const proc = Gio.Subprocess.new(
             ["wechsel", "--version"],
             Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE,
         );
+        procs.push(proc);
+
         const [_success, stdout, new_stderr] = proc.communicate_utf8(null, null);
         stderr = new_stderr
         if (stdout) {

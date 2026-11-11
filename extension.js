@@ -261,10 +261,10 @@ const Foldout = GObject.registerClass(
                     }
                 });
 
-              // close menu when left arrow key is pressed on child
-              const keyController = new Clutter.KeyController();
-              keyController.connect('key-press', () => {
-                   const [, symbol] = keyController.get_key();
+                // close menu when left arrow key is pressed on child
+                const keyController = new Clutter.KeyController();
+                keyController.connect('key-press', () => {
+                    const [, symbol] = keyController.get_key();
                     if (symbol === Clutter.KEY_Left && !item.unfolded && !this.is_root) {
                         this.close();
                         // focus this
@@ -400,7 +400,8 @@ const Indicator = GObject.registerClass(
              * Is the wechsel tool installed
              * @type {boolean}
              */
-            this.installed = checkInstallation(this._proc, Main.notifyError)
+            this.installed;
+            checkInstallation(this._proc, Main.notifyError)
 
             /**
              * tracks the state of the menu
@@ -425,6 +426,10 @@ const Indicator = GObject.registerClass(
             })
             this.add_child(this.panelIcon);
 
+            /**
+             * sub process handles to be able to force exit them on extension disable 
+             */
+            this._proc = []
 
             this.state_changed_handler = this.menu.connect('open-state-changed', (
                 _menu,
@@ -537,22 +542,30 @@ const Indicator = GObject.registerClass(
         change_project(name, close = true) {
             this.active_project = name;
 
-            this._proc?.force_exit();
+            for (const proc of this._proc) {
+                proc?.force_exit();
+            }
+            this._proc = []
 
-            this._proc = callChangeProject(name);
+
+            this._proc.push(callChangeProject(name));
             if (close) {
                 // Close the Menu
                 this.menu.close();
             }
         }
 
-      destroy() {
-        this.menu.disconnect(this.state_changed_handler);
-        this.state_changed_handler = null;
-        this.item_projects_section.removeAll();
-        this._proc?.force_exit();
-        this.searchProvider = null;
-        super.destroy()
+        destroy() {
+            this.menu.disconnect(this.state_changed_handler);
+            this.state_changed_handler = null;
+            this.item_projects_section.removeAll();
+            for (const proc of this._proc) {
+                proc?.force_exit();
+            }
+            this._proc = null;
+
+            this.searchProvider = null;
+            super.destroy()
         }
     });
 
@@ -561,13 +574,13 @@ function _switchInputSource(display, window, event, binding) {
         return
     }
     getProjectTree.bind(this)(this._proc, (projects, active) => {
-      getIcons(projects).then((icons) => {
-        let _switcherPopup = new ProjectSwitcherPopup(this._keybindingAction, this._keybindingActionBackwards, this._indicator, binding, projects, icons, active);
-        _switcherPopup.connect('destroy', () => {
-            _switcherPopup = null;
-        });
-        if (!_switcherPopup.show(binding.get_name().endsWith("backward"), binding.get_name(), binding.get_mask()))
-            _switcherPopup.fadeAndDestroy();
+        getIcons(projects).then((icons) => {
+            let _switcherPopup = new ProjectSwitcherPopup(this._keybindingAction, this._keybindingActionBackwards, this._indicator, binding, projects, icons, active);
+            _switcherPopup.connect('destroy', () => {
+                _switcherPopup = null;
+            });
+            if (!_switcherPopup.show(binding.get_name().endsWith("backward"), binding.get_name(), binding.get_mask()))
+                _switcherPopup.fadeAndDestroy();
         })
     }, Main.notifyError)
 
@@ -584,6 +597,7 @@ export default class WechselExtension extends Extension {
     constructor(uuid) {
         super(uuid);
         this._uuid = uuid;
+        this._proc = [];
     }
 
     enable() {
@@ -643,7 +657,9 @@ export default class WechselExtension extends Extension {
         this._indicator = null;
         this.settings = null;
 
-        this._proc?.force_exit();
+        for (const proc of this._proc) {
+            proc?.force_exit();
+        }
         this._proc = null;
 
 

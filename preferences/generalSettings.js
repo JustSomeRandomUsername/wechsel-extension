@@ -37,6 +37,8 @@ export const GeneralPage = GObject.registerClass(
                 name: 'GeneralSettingsPage'
             });
 
+            this._proc = [];
+
             this._settings = settings;
             this._settingsKey = settingsKey;
 
@@ -141,7 +143,9 @@ export const GeneralPage = GObject.registerClass(
         }
 
         destroy() {
-            this._proc.force_exit();
+            for (const proc of this._proc) {
+                proc?.force_exit();
+            }
             this._proc = null;
             super.destroy();
         }

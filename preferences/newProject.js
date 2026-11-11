@@ -38,6 +38,7 @@ export const NewProjectPage = GObject.registerClass(
                 name: 'NewProjectPage'
             });
 
+            this._proc = [];
             this.window = window;
 
             /** @type {{projects: Gtk.StringList, parent: Gtk.DropDown, name: Gtk.Entry, icon: IconSelector}} references to the main selection elements */
@@ -241,7 +242,7 @@ export const NewProjectPage = GObject.registerClass(
                 launcher.setenv("PLUGINS", plugin_env, true);
 
                 // Call `wechsel new <name> --parent <selected_parent> --folders=<folder_states>`
-                this._proc = launcher.spawnv(["wechsel",
+                const proc_new = launcher.spawnv(["wechsel",
                     'new',
                     name,
                     '--parent', this.header_state.projects.get_string(this.header_state.parent.get_selected()),
@@ -251,21 +252,24 @@ export const NewProjectPage = GObject.registerClass(
                         .join(" ")
                     }`,
                 ]);
+                this._proc.push(proc_new);
 
-                this._proc.communicate_utf8_async(null, null, (_subprocess, result /*@type {Gio.AsyncResult}*/, _data) => {
-                    const [_success, stdout, stderr] = this._proc.communicate_utf8_finish(result);
+                proc_new.communicate_utf8_async(null, null, (_subprocess, result /*@type {Gio.AsyncResult}*/, _data) => {
+                    const [_success, stdout, stderr] = proc_new.communicate_utf8_finish(result);
                     if (stderr !== "") {
                         console.error('An error occurred while adding the project', stderr);
                     }
                     const icon_file = this.header_state.icon.file;
                     if (icon_file) {
-                        this._proc = Gio.Subprocess.new(
+                        const proc_path = Gio.Subprocess.new(
                             ["wechsel", "path", name],
                             Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
                         );
+                        this._proc.push(proc_path);
 
-                        this._proc.communicate_utf8_async(null, null, (_subprocess, result /*@type {Gio.AsyncResult}*/, _data) => {
-                            const [_success, stdout, stderr] = this._proc.communicate_utf8_finish(result)
+
+                        proc_path.communicate_utf8_async(null, null, (_subprocess, result /*@type {Gio.AsyncResult}*/, _data) => {
+                            const [_success, stdout, stderr] = proc_path.communicate_utf8_finish(result)
                             if (stderr !== "") {
                                 console.error('An error occurred while adding the project', stderr);
                             }
@@ -344,8 +348,8 @@ export const NewProjectPage = GObject.registerClass(
                 this.header_state.parent.set_selected(active_index);
 
                 // Clear the folder list
-                for (let folder of this.folder_state) {
-                    this.folderGroup.remove(folder.row);
+                for (const child of this.folder_state) {
+                    this.grid.remove(child.widget);
                 }
                 // Setup the folder List 
                 this.folder_state = [];
@@ -356,7 +360,7 @@ export const NewProjectPage = GObject.registerClass(
                     const row = Math.floor(i / 2);
                     this.grid.attach(box, i % 2, row, 1, 1);
 
-                    this.folder_state.push({ toggle: box.toggle, name: folder, row: row });
+                    this.folder_state.push({ toggle: box.toggle, name: folder, widget: box });
                     i++;
                 }
 
@@ -365,7 +369,9 @@ export const NewProjectPage = GObject.registerClass(
         }
 
         destroy() {
-            this._proc.force_exit();
+            for (const proc of this._proc) {
+                proc?.force_exit();
+            }
             this._proc = null;
             this.header_state = null;
             this.folder_state = null;
