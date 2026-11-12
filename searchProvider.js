@@ -86,7 +86,7 @@ export class SearchProvider {
      * @param {string[]} terms - The search terms
      */
     activateResult(result, _terms) {
-        this._change_proc.force_exit?.force_exit();
+        this._change_proc?.force_exit();
         this._change_proc = callChangeProject(result);
     }
 

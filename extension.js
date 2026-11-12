@@ -401,7 +401,7 @@ const Indicator = GObject.registerClass(
              * @type {boolean}
              */
             this.installed;
-            [this.installed, this._check_proc] = checkInstallation(Main.notifyError)
+            this._check_proc = checkInstallation.bind(this)((installed) => this.installed = installed, Main.notifyError)
 
             /**
              * tracks the state of the menu
@@ -437,7 +437,7 @@ const Indicator = GObject.registerClass(
                 if (open) {
                     if (this.installed === false) {
                         this._check_proc?.force_exit();
-                        [this.installed, this._check_proc] = checkInstallation(Main.notifyError)
+                        this._check_proc = checkInstallation.bind(this)((installed) => this.installed = installed, Main.notifyError)
                     }
                     // refresh the popupmenu
                     this.updateUI(true);

@@ -253,12 +253,12 @@ export const NewProjectPage = GObject.registerClass(
                     }`,
                 ]);
 
+                const icon_file = this.header_state.icon.file;
                 this._new_proc.communicate_utf8_async(null, null, (_subprocess, result /*@type {Gio.AsyncResult}*/, _data) => {
                     const [_success, stdout, stderr] = this._new_proc.communicate_utf8_finish(result);
                     if (stderr !== "") {
                         console.error('An error occurred while adding the project', stderr);
                     }
-                    const icon_file = this.header_state.icon.file;
                     if (icon_file) {
                         this._path_proc?.force_exit();
                         this._path_proc = Gio.Subprocess.new(
