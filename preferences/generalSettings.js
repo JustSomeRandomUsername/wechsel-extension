@@ -37,8 +37,6 @@ export const GeneralPage = GObject.registerClass(
                 name: 'GeneralSettingsPage'
             });
 
-            this._proc = [];
-
             this._settings = settings;
             this._settingsKey = settingsKey;
 
@@ -116,8 +114,8 @@ export const GeneralPage = GObject.registerClass(
             });
             openProjectFolder.add_suffix(openButton);
             openButton.connect('clicked', () => {
-
-                getProjectTree(this._proc, (projects, active) => {
+                this._tree_proc?.force_exit();
+                this._tree_proc = getProjectTree((projects, active) => {
                     let recurse = (project) => {
                         if (project.name === active) {
                             return project
@@ -143,10 +141,8 @@ export const GeneralPage = GObject.registerClass(
         }
 
         destroy() {
-            for (const proc of this._proc) {
-                proc?.force_exit();
-            }
-            this._proc = null;
+            this._tree_proc?.force_exit();
+            this._tree_proc = null;
             super.destroy();
         }
     });

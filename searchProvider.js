@@ -53,8 +53,7 @@ export class SearchProvider {
         this.isRemoteProvider = false;
 
         this.projects = []
-        this._proc = []
-        getProjectTree.bind(this)(this._proc, (projects, _active) => {
+        this._tree_proc = getProjectTree.bind(this)((projects, _active) => {
             this.update_project_list(projects)
         }, Main.notifyError);
 
@@ -87,7 +86,8 @@ export class SearchProvider {
      * @param {string[]} terms - The search terms
      */
     activateResult(result, _terms) {
-        this._proc.push(callChangeProject(result));
+        this._change_proc.force_exit?.force_exit();
+        this._change_proc = callChangeProject(result);
     }
 
     /**
@@ -249,9 +249,10 @@ export class SearchProvider {
     }
 
     destroy() {
-        for (const proc of this._proc) {
-            proc?.force_exit();
-        }
-        this._proc = null;
+        this._tree_proc?.force_exit();
+        this._tree_proc = null;
+
+        this._change_proc?.force_exit();
+        this._change_proc = null;
     }
 }

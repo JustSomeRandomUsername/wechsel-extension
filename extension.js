@@ -401,7 +401,7 @@ const Indicator = GObject.registerClass(
              * @type {boolean}
              */
             this.installed;
-            checkInstallation(this._proc, Main.notifyError)
+            [this.installed, this._check_proc] = checkInstallation(Main.notifyError)
 
             /**
              * tracks the state of the menu
@@ -426,10 +426,6 @@ const Indicator = GObject.registerClass(
             })
             this.add_child(this.panelIcon);
 
-            /**
-             * sub process handles to be able to force exit them on extension disable 
-             */
-            this._proc = []
 
             this.state_changed_handler = this.menu.connect('open-state-changed', (
                 _menu,
@@ -440,7 +436,8 @@ const Indicator = GObject.registerClass(
                 this.menu_open = open;
                 if (open) {
                     if (this.installed === false) {
-                        this.installed = checkInstallation(this._proc, Main.notifyError)
+                        this._check_proc?.force_exit();
+                        [this.installed, this._check_proc] = checkInstallation(Main.notifyError)
                     }
                     // refresh the popupmenu
                     this.updateUI(true);
@@ -472,7 +469,6 @@ const Indicator = GObject.registerClass(
             // binds the active project name to the indicator button text
             this.bind_property('active-project', this.panelIcon, 'text',
                 GObject.BindingFlags.SYNC_CREATE | GObject.BindingFlags.DEFAULT);
-
 
             // initial update
             this.updateUI();
@@ -529,7 +525,8 @@ const Indicator = GObject.registerClass(
                 // clear the section
                 this.item_projects_section.removeAll();
 
-                getProjectTree.bind(this)(this._proc, (projects, active) => {
+                this._tree_proc?.force_exit();
+                this._tree_proc = getProjectTree.bind(this)((projects, active) => {
                     this.active_project = active;
                     if (this.menu_open) {
                         buildProjectTree(projects, this.item_projects_section);
@@ -542,13 +539,8 @@ const Indicator = GObject.registerClass(
         change_project(name, close = true) {
             this.active_project = name;
 
-            for (const proc of this._proc) {
-                proc?.force_exit();
-            }
-            this._proc = []
-
-
-            this._proc.push(callChangeProject(name));
+            this._change_proc?.force_exit();
+            this._change_proc = callChangeProject(name);
             if (close) {
                 // Close the Menu
                 this.menu.close();
@@ -559,10 +551,16 @@ const Indicator = GObject.registerClass(
             this.menu.disconnect(this.state_changed_handler);
             this.state_changed_handler = null;
             this.item_projects_section.removeAll();
-            for (const proc of this._proc) {
-                proc?.force_exit();
-            }
-            this._proc = null;
+
+            this._change_proc?.force_exit();
+            this._change_proc = null;
+
+            this._tree_proc?.force_exit();
+            this._tree_proc = null;
+
+            this._check_proc?.force_exit();
+            this._check_proc = null;
+
 
             this.searchProvider = null;
             super.destroy()
@@ -573,7 +571,8 @@ function _switchInputSource(display, window, event, binding) {
     if (this._indicator.installed !== true) {
         return
     }
-    getProjectTree.bind(this)(this._proc, (projects, active) => {
+    this._tree_proc?.force_exit();
+    this._tree_proc = getProjectTree.bind(this)((projects, active) => {
         getIcons(projects).then((icons) => {
             let _switcherPopup = new ProjectSwitcherPopup(this._keybindingAction, this._keybindingActionBackwards, this._indicator, binding, projects, icons, active);
             _switcherPopup.connect('destroy', () => {
@@ -597,7 +596,6 @@ export default class WechselExtension extends Extension {
     constructor(uuid) {
         super(uuid);
         this._uuid = uuid;
-        this._proc = [];
     }
 
     enable() {
@@ -657,11 +655,8 @@ export default class WechselExtension extends Extension {
         this._indicator = null;
         this.settings = null;
 
-        for (const proc of this._proc) {
-            proc?.force_exit();
-        }
-        this._proc = null;
-
+        this._tree_proc?.force_exit();
+        this._tree_proc = null;
 
         this.exportedObject.unexport();
         this.exportedObject = null;

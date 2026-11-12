@@ -39,7 +39,7 @@ import Gio from 'gi://Gio';
  * @param {function(ProjectTree, string): void} lambda
  * @param {function(string, string): void} onError
  */
-export function getProjectTree(procs, lambda, onError = (_1, _2) => { }, request_folders = false) {
+export function getProjectTree(lambda, onError = (_1, _2) => { }, request_folders = false) {
     let cmd = ["wechsel", 'tree'];
     if (request_folders) {
         cmd.push("--folders");
@@ -50,10 +50,9 @@ export function getProjectTree(procs, lambda, onError = (_1, _2) => { }, request
             cmd,
             Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
         );
-        procs.push(proc);
     } catch {
         onError('Calling the wechsel programm failed (`wechsel tree`)')
-        return
+        return proc
     }
     proc.communicate_utf8_async(null, null, (subprocess /*@type {Gio.Subprocess}*/, result /*@type {Gio.AsyncResult}*/, _data) => {
         const [success, stdout, stderr] = proc.communicate_utf8_finish(result)
@@ -66,12 +65,12 @@ export function getProjectTree(procs, lambda, onError = (_1, _2) => { }, request
                 data = JSON.parse(stdout)
             } catch {
                 onError('Parsing the output of `wechsel tree` failed')
-                return
+                return proc
             }
             lambda(data.tree, data.active)
         }
     });
-    return
+    return proc
 }
 
 /**
@@ -136,15 +135,15 @@ export function callChangeProject(project) {
  * @returns {boolean}
 
  */
-export function checkInstallation(procs, onError) {
+export function checkInstallation(onError) {
     // Check if Wechsel is installed
     let stderr;
+    let proc;
     try {
-        const proc = Gio.Subprocess.new(
+        proc = Gio.Subprocess.new(
             ["wechsel", "--version"],
             Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE,
         );
-        procs.push(proc);
 
         const [_success, stdout, new_stderr] = proc.communicate_utf8(null, null);
         stderr = new_stderr
@@ -152,7 +151,7 @@ export function checkInstallation(procs, onError) {
             const matches = stdout.match(/.*0.(\d+).(\d+)/)
             if (matches === null || matches[1] < 2 || matches[2] < 2) {
                 onError('The installed wechsel version is too old.', 'The installed wechsel version is too old for this version of the extension, this extension requires wechsel > 0.2.2');
-                return false
+                return [false, proc]
             }
         } else {
             throw true
@@ -160,7 +159,7 @@ export function checkInstallation(procs, onError) {
 
     } catch {
         onError('An error occurred while checking the wechsel version.', 'This likely means that the wechsel cli programm is not installed, install instruction can be found at `https://github.com/JustSomeRandomUsername/wechsel`. If you just installed it and are still getting this error make sure you can call wechsel from the terminal and try loging out and in again to restart your gnome session');
-        return false
+        return [false, proc]
     };
-    return true
+    return [true, proc]
 }

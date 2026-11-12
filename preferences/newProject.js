@@ -38,7 +38,6 @@ export const NewProjectPage = GObject.registerClass(
                 name: 'NewProjectPage'
             });
 
-            this._proc = [];
             this.window = window;
 
             /** @type {{projects: Gtk.StringList, parent: Gtk.DropDown, name: Gtk.Entry, icon: IconSelector}} references to the main selection elements */
@@ -242,7 +241,8 @@ export const NewProjectPage = GObject.registerClass(
                 launcher.setenv("PLUGINS", plugin_env, true);
 
                 // Call `wechsel new <name> --parent <selected_parent> --folders=<folder_states>`
-                const proc_new = launcher.spawnv(["wechsel",
+                this._new_proc?.force_exit();
+                this._new_proc = launcher.spawnv(["wechsel",
                     'new',
                     name,
                     '--parent', this.header_state.projects.get_string(this.header_state.parent.get_selected()),
@@ -252,24 +252,23 @@ export const NewProjectPage = GObject.registerClass(
                         .join(" ")
                     }`,
                 ]);
-                this._proc.push(proc_new);
 
-                proc_new.communicate_utf8_async(null, null, (_subprocess, result /*@type {Gio.AsyncResult}*/, _data) => {
-                    const [_success, stdout, stderr] = proc_new.communicate_utf8_finish(result);
+                this._new_proc.communicate_utf8_async(null, null, (_subprocess, result /*@type {Gio.AsyncResult}*/, _data) => {
+                    const [_success, stdout, stderr] = this._new_proc.communicate_utf8_finish(result);
                     if (stderr !== "") {
                         console.error('An error occurred while adding the project', stderr);
                     }
                     const icon_file = this.header_state.icon.file;
                     if (icon_file) {
-                        const proc_path = Gio.Subprocess.new(
+                        this._path_proc?.force_exit();
+                        this._path_proc = Gio.Subprocess.new(
                             ["wechsel", "path", name],
                             Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
                         );
-                        this._proc.push(proc_path);
 
 
-                        proc_path.communicate_utf8_async(null, null, (_subprocess, result /*@type {Gio.AsyncResult}*/, _data) => {
-                            const [_success, stdout, stderr] = proc_path.communicate_utf8_finish(result)
+                        this._path_proc.communicate_utf8_async(null, null, (_subprocess, result /*@type {Gio.AsyncResult}*/, _data) => {
+                            const [_success, stdout, stderr] = this._path_proc.communicate_utf8_finish(result)
                             if (stderr !== "") {
                                 console.error('An error occurred while adding the project', stderr);
                             }
@@ -319,7 +318,8 @@ export const NewProjectPage = GObject.registerClass(
         }
 
         updateProjectList() {
-            getProjectTree.bind(this)(this._proc, (projects, active) => {
+            this._tree_proc?.force_exit();
+            this._tree_proc = getProjectTree.bind(this)((projects, active) => {
                 // clear the list
                 this.header_state.projects = new Gtk.StringList();
                 let folder_names = new Set();
@@ -369,10 +369,13 @@ export const NewProjectPage = GObject.registerClass(
         }
 
         destroy() {
-            for (const proc of this._proc) {
-                proc?.force_exit();
-            }
-            this._proc = null;
+            this._path_proc?.force_exit();
+            this._path_proc = null;
+            this._new_proc?.force_exit();
+            this._new_proc = null;
+            this._tree_proc?.force_exit();
+            this._tree_proc = null;
+
             this.header_state = null;
             this.folder_state = null;
             this.plugin_state = null;
